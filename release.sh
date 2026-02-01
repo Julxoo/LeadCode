@@ -109,21 +109,11 @@ TODAY=$(date +%Y-%m-%d)
 
 # Check if CHANGELOG.md exists
 if [ -f "CHANGELOG.md" ]; then
-  # Insert new version section after the "and this project adheres" line
-  # or after the first ## if that line doesn't exist
   if grep -q "## \[Unreleased\]" CHANGELOG.md; then
-    # Replace [Unreleased] with the new version
     sed -i '' "s/## \[Unreleased\]/## [$NEW_VERSION] - $TODAY/" CHANGELOG.md
   else
-    # Insert after the header block (after the first ---)
-    sed -i '' "/^## \[/i\\
-\\
-## [$NEW_VERSION] - $TODAY\\
-\\
-### Changed\\
-\\
-- TODO: describe your changes here\\
-" CHANGELOG.md
+    # Insert before the first ## [...] line only (using awk to avoid sed multi-match)
+    awk -v ver="## [$NEW_VERSION] - $TODAY" 'BEGIN{done=0} /^## \[/ && !done {print ver; print ""; print "### Changed"; print ""; print "- TODO: describe your changes here"; print ""; done=1} {print}' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
   fi
 else
   echo -e "${YELLOW}No CHANGELOG.md found — skipping changelog update${NC}"
