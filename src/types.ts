@@ -70,6 +70,17 @@ export interface DetectedStack {
   uiComponents: string | null;
 }
 
+export interface FetchedDocs {
+  techDocs: Record<string, string>;
+  crossDocs: Record<string, string>;
+  metadata: {
+    techCount: number;
+    snippetCount: number;
+    failedTechs: string[];
+    warning?: string;
+  };
+}
+
 export interface RepoAnalysis {
   projectPath: string;
   projectName: string;

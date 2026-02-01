@@ -18,7 +18,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
     {
       title: "Validate CLAUDE.md",
       description:
-        "Checks if an existing CLAUDE.md is still in sync with the actual project. Detects drifts: missing technologies, outdated versions.",
+        "Check if an existing CLAUDE.md is still up to date with the project. Detects drifts like missing technologies or outdated versions. Use this when the user asks to validate, check, verify, or audit their CLAUDE.md.",
       inputSchema: {
         projectPath: z
           .string()

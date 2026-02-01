@@ -13,7 +13,7 @@ export function registerAnalyzeRepo(server: McpServer): void {
     {
       title: "Analyze Repository",
       description:
-        "Scans a project directory and returns structured technical facts: framework, dependencies, directory structure, detected stack (ORM, auth, validation, CSS, testing, etc.). No opinions, only facts.",
+        "Scan and analyze a project to detect its full tech stack: framework, ORM, auth, CSS, testing, state management, API style, and more. Use this when the user wants to know what technologies a project uses, or as the first step before generating a CLAUDE.md.",
       inputSchema: {
         projectPath: z
           .string()

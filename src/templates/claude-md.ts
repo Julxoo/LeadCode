@@ -1,6 +1,6 @@
 import type { RepoAnalysis } from "../types.js";
 import type { CodePatterns } from "../analyzers/patterns.js";
-import type { FetchedDocs } from "../context7/fetch-all.js";
+import type { FetchedDocs } from "../types.js";
 import type { Locale } from "../i18n/types.js";
 import { getMessages, interpolate } from "../i18n/index.js";
 

@@ -4,8 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod";
 import { generateClaudeMd } from "../templates/claude-md.js";
 import { analyzePatterns } from "../analyzers/patterns.js";
-import { fetchAllDocs } from "../context7/index.js";
-import type { RepoAnalysis } from "../types.js";
+import type { RepoAnalysis, FetchedDocs } from "../types.js";
 
 export function registerGenerateClaudeMd(server: McpServer): void {
   server.registerTool(
@@ -13,11 +12,17 @@ export function registerGenerateClaudeMd(server: McpServer): void {
     {
       title: "Generate CLAUDE.md",
       description:
-        "Fetches up-to-date documentation from Context7 for each detected technology, then generates a structured CLAUDE.md file. Writes it directly to the project root.",
+        "Generate a CLAUDE.md file for a project. Takes the analysis from analyze-repo and synthesized documentation rules (from Context7 via Claude). Use this when the user wants to create, setup, init, or generate project rules, a CLAUDE.md, or configure Claude Code for a project.",
       inputSchema: {
         analysis: z
           .string()
           .describe("JSON string of RepoAnalysis (output of analyze-repo)"),
+        docs: z
+          .string()
+          .optional()
+          .describe(
+            'JSON string of synthesized documentation: { "techDocs": Record<string, string>, "crossDocs": Record<string, string> }. Each value should be concise, actionable rules (not raw code snippets). If omitted, CLAUDE.md is generated without technology documentation.'
+          ),
         choices: z
           .string()
           .optional()
@@ -26,12 +31,25 @@ export function registerGenerateClaudeMd(server: McpServer): void {
           ),
       },
     },
-    async ({ analysis: analysisStr, choices: choicesStr }) => {
+    async ({ analysis: analysisStr, docs: docsStr, choices: choicesStr }) => {
       try {
         const analysis: RepoAnalysis = JSON.parse(analysisStr);
         const choices: Record<string, string> = choicesStr
           ? JSON.parse(choicesStr)
           : {};
+
+        const docs: FetchedDocs = docsStr
+          ? JSON.parse(docsStr)
+          : { techDocs: {}, crossDocs: {}, metadata: { techCount: 0, snippetCount: 0, failedTechs: [] } };
+
+        // Ensure metadata exists
+        if (!docs.metadata) {
+          docs.metadata = {
+            techCount: Object.keys(docs.techDocs ?? {}).length,
+            snippetCount: Object.keys(docs.techDocs ?? {}).length + Object.keys(docs.crossDocs ?? {}).length,
+            failedTechs: [],
+          };
+        }
 
         // Verify project path still exists
         try {
@@ -43,8 +61,6 @@ export function registerGenerateClaudeMd(server: McpServer): void {
           };
         }
 
-        // Fetch docs from Context7 internally
-        const docs = await fetchAllDocs(analysis);
         const patterns = await analyzePatterns(analysis.projectPath);
 
         const content = generateClaudeMd(
