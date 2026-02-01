@@ -1,6 +1,6 @@
 {
   "name": "leadcode",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Virtual Lead Tech MCP server for Claude Code – analyzes repos, detects gaps, and generates structured CLAUDE.md files",
   "type": "module",
   "bin": {
