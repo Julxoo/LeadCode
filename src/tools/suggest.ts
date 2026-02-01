@@ -373,7 +373,8 @@ export function registerSuggest(server: McpServer): void {
     async ({ analysis: analysisStr, gaps: gapsStr }) => {
       try {
         const analysis: RepoAnalysis = JSON.parse(analysisStr);
-        const { gaps } = JSON.parse(gapsStr) as { gaps: Gap[] };
+        const parsed = JSON.parse(gapsStr);
+        const gaps: Gap[] = Array.isArray(parsed) ? parsed : parsed.gaps;
         const suggestions = buildSuggestions(analysis, gaps);
 
         return {
