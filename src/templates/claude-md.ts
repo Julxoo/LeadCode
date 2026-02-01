@@ -1,88 +1,95 @@
 import type { RepoAnalysis, Convention, CrossRef } from "../types.js";
 import type { CodePatterns } from "../analyzers/patterns.js";
+import type { Locale } from "../i18n/types.js";
+import { getMessages, interpolate } from "../i18n/index.js";
 
-function describeArchitecture(analysis: RepoAnalysis): string[] {
+function describeArchitecture(analysis: RepoAnalysis, locale: Locale): string[] {
+  const m = getMessages(locale).templates;
   const lines: string[] = [];
   const f = analysis.framework;
   const d = analysis.detected;
 
   if (f?.name === "next") {
     const variant = f.variant === "app-router" ? "App Router" : f.variant === "pages-router" ? "Pages Router" : "";
-    lines.push(`- **Frontend + Backend**: Next.js ${f.version} (${variant}) — full-stack React framework`);
+    lines.push(`- **${m.architecture.frontendBackend}**: Next.js ${f.version} (${variant}) — ${m.architecture.fullStackReact}`);
   } else if (f?.name === "vite-react") {
-    lines.push(`- **Frontend**: React SPA with Vite ${f.version}`);
+    lines.push(`- **${m.architecture.frontend}**: ${m.architecture.reactSpaVite} ${f.version}`);
   } else if (f) {
-    lines.push(`- **Framework**: ${f.name} ${f.version}`);
+    lines.push(`- **${m.architecture.framework}**: ${f.name} ${f.version}`);
   }
 
-  if (d.orm) lines.push(`- **Data Layer**: ${d.orm}${d.database ? ` → ${d.database}` : ""}`);
-  else if (d.database) lines.push(`- **Database**: ${d.database}`);
+  if (d.orm) lines.push(`- **${m.architecture.dataLayer}**: ${d.orm}${d.database ? ` → ${d.database}` : ""}`);
+  else if (d.database) lines.push(`- **${m.architecture.database}**: ${d.database}`);
 
-  if (d.auth) lines.push(`- **Authentication**: ${d.auth}`);
-  if (d.apiStyle) lines.push(`- **API**: ${d.apiStyle}`);
-  if (d.stateManagement) lines.push(`- **Client State**: ${d.stateManagement}`);
-  if (d.i18n) lines.push(`- **i18n**: ${d.i18n}`);
-  if (d.payments) lines.push(`- **Payments**: ${d.payments}`);
-  if (d.realtime) lines.push(`- **Realtime**: ${d.realtime}`);
-  if (d.email) lines.push(`- **Email**: ${d.email}`);
-  if (d.cms) lines.push(`- **Content**: ${d.cms}`);
-  if (d.jobs) lines.push(`- **Background Jobs**: ${d.jobs}`);
-  if (d.fileUpload) lines.push(`- **File Upload**: ${d.fileUpload}`);
+  if (d.auth) lines.push(`- **${m.architecture.authentication}**: ${d.auth}`);
+  if (d.apiStyle) lines.push(`- **${m.architecture.api}**: ${d.apiStyle}`);
+  if (d.stateManagement) lines.push(`- **${m.architecture.clientState}**: ${d.stateManagement}`);
+  if (d.i18n) lines.push(`- **${m.architecture.i18n}**: ${d.i18n}`);
+  if (d.payments) lines.push(`- **${m.architecture.payments}**: ${d.payments}`);
+  if (d.realtime) lines.push(`- **${m.architecture.realtime}**: ${d.realtime}`);
+  if (d.email) lines.push(`- **${m.architecture.email}**: ${d.email}`);
+  if (d.cms) lines.push(`- **${m.architecture.content}**: ${d.cms}`);
+  if (d.jobs) lines.push(`- **${m.architecture.backgroundJobs}**: ${d.jobs}`);
+  if (d.fileUpload) lines.push(`- **${m.architecture.fileUpload}**: ${d.fileUpload}`);
 
   const scale = analysis.structure.approximateFileCount;
   if (scale > 0) {
-    const size = scale < 30 ? "Small" : scale < 100 ? "Medium" : scale < 300 ? "Large" : "Very large";
-    lines.push(`- **Project Size**: ${size} (~${scale} source files)`);
+    const size = scale < 30 ? m.architecture.sizeSmall
+      : scale < 100 ? m.architecture.sizeMedium
+      : scale < 300 ? m.architecture.sizeLarge
+      : m.architecture.sizeVeryLarge;
+    lines.push(`- **${m.architecture.projectSize}**: ${size} (~${scale} ${m.architecture.sourceFiles})`);
   }
 
   return lines;
 }
 
-function buildDynamicInstructions(analysis: RepoAnalysis): string[] {
+function buildDynamicInstructions(analysis: RepoAnalysis, locale: Locale): string[] {
+  const m = getMessages(locale).templates.instructions;
   const lines: string[] = [];
   const f = analysis.framework;
   const d = analysis.detected;
 
-  lines.push("- Follow ALL rules in this document without exception.");
-  lines.push("- When creating new files, respect the existing project structure and naming conventions.");
-  lines.push("- When unsure about a pattern, check existing code for precedent before inventing new patterns.");
-  lines.push("- Never introduce new dependencies without being explicitly asked.");
-  lines.push("- Prefer small, focused changes over large refactors.");
+  lines.push(`- ${m.followAll}`);
+  lines.push(`- ${m.respectStructure}`);
+  lines.push(`- ${m.checkPrecedent}`);
+  lines.push(`- ${m.neverNewDeps}`);
+  lines.push(`- ${m.smallChanges}`);
 
   if (f?.name === "next" && f.variant === "app-router") {
-    lines.push("- Default to Server Components. Only add 'use client' when the component needs interactivity.");
-    lines.push("- Place new pages in app/ following the existing route structure.");
-    lines.push("- Use Server Actions for mutations, Route Handlers for API endpoints.");
+    lines.push(`- ${m.serverComponents}`);
+    lines.push(`- ${m.appRouterPages}`);
+    lines.push(`- ${m.serverActions}`);
   }
 
   if (d.orm === "prisma") {
-    lines.push("- After changing schema.prisma, always run `npx prisma migrate dev` and `npx prisma generate`.");
+    lines.push(`- ${m.prismaAfterChange}`);
   } else if (d.orm === "drizzle") {
-    lines.push("- After changing Drizzle schemas, run `npx drizzle-kit generate` to create migrations.");
+    lines.push(`- ${m.drizzleAfterChange}`);
   }
 
   if (d.validation === "zod") {
-    lines.push("- Validate all inputs at API boundaries with Zod. Parse, don't validate.");
+    lines.push(`- ${m.zodValidate}`);
   }
 
   if (d.css === "tailwind") {
-    lines.push("- Use Tailwind utility classes for styling. Use cn() for conditional classes.");
+    lines.push(`- ${m.tailwindClasses}`);
   }
 
   if (d.uiComponents === "shadcn") {
-    lines.push("- Use shadcn/ui components from components/ui/ as building blocks.");
+    lines.push(`- ${m.shadcnComponents}`);
   }
 
   if (d.testing) {
-    lines.push(`- Run tests with the project's ${d.testing} setup before marking work as done.`);
+    lines.push(`- ${interpolate(m.runTests, { testing: d.testing })}`);
   }
 
   if (d.linter) {
-    lines.push(`- Run ${d.linter} before committing. Fix all warnings.`);
+    lines.push(`- ${interpolate(m.runLinter, { linter: d.linter })}`);
   }
 
   if (d.i18n) {
-    lines.push("- All user-facing strings must go through the i18n system. Never hardcode text.");
+    lines.push(`- ${m.i18nStrings}`);
   }
 
   return lines;
@@ -94,86 +101,88 @@ export function generateClaudeMd(
   interdictions: string[],
   crossRefs: CrossRef[],
   choices: Record<string, string>,
-  patterns?: CodePatterns
+  patterns?: CodePatterns,
+  locale: Locale = "en"
 ): string {
+  const m = getMessages(locale).templates;
   const lines: string[] = [];
 
   // Header
-  lines.push(`# ${analysis.projectName} — Project Rules`);
+  lines.push(`# ${interpolate(m.header.title, { name: analysis.projectName })}`);
   lines.push("");
-  lines.push("> Auto-generated by [LeadCode](https://github.com/Julxoo/LeadCode). This file is the source of truth for Claude Code.");
-  lines.push("> Modify as needed, then commit to version control.");
+  lines.push(`> ${m.header.meta1}`);
+  lines.push(`> ${m.header.meta2}`);
   lines.push("");
 
   // Architecture overview
-  const archLines = describeArchitecture(analysis);
+  const archLines = describeArchitecture(analysis, locale);
   if (archLines.length > 0) {
-    lines.push("## Architecture Overview");
+    lines.push(`## ${m.sections.architectureOverview}`);
     lines.push("");
     lines.push(...archLines);
     lines.push("");
   }
 
   // Stack details
-  lines.push("## Stack");
+  lines.push(`## ${m.sections.stack}`);
   lines.push("");
   if (analysis.framework) {
     const variant = analysis.framework.variant
       ? ` (${analysis.framework.variant})`
       : "";
     lines.push(
-      `- **Framework**: ${analysis.framework.name} ${analysis.framework.version}${variant}`
+      `- **${m.stackLabels.framework}**: ${analysis.framework.name} ${analysis.framework.version}${variant}`
     );
   }
   const d = analysis.detected;
-  if (d.orm) lines.push(`- **ORM**: ${d.orm}`);
-  if (d.database) lines.push(`- **Database**: ${d.database}`);
-  if (d.auth) lines.push(`- **Auth**: ${d.auth}`);
-  if (d.validation) lines.push(`- **Validation**: ${d.validation}`);
-  if (d.css) lines.push(`- **CSS**: ${d.css}`);
-  if (d.uiComponents) lines.push(`- **UI Components**: ${d.uiComponents}`);
-  if (d.testing) lines.push(`- **Testing**: ${d.testing}`);
-  if (d.stateManagement) lines.push(`- **State Management**: ${d.stateManagement}`);
-  if (d.apiStyle) lines.push(`- **API Style**: ${d.apiStyle}`);
-  if (d.i18n) lines.push(`- **i18n**: ${d.i18n}`);
-  if (d.payments) lines.push(`- **Payments**: ${d.payments}`);
-  if (d.email) lines.push(`- **Email**: ${d.email}`);
-  if (d.realtime) lines.push(`- **Realtime**: ${d.realtime}`);
-  if (d.cms) lines.push(`- **CMS/Content**: ${d.cms}`);
-  if (d.fileUpload) lines.push(`- **File Upload**: ${d.fileUpload}`);
-  if (d.jobs) lines.push(`- **Jobs/Queue**: ${d.jobs}`);
-  if (d.monorepo) lines.push(`- **Monorepo**: ${d.monorepo}`);
-  if (d.deployment) lines.push(`- **Deployment**: ${d.deployment}`);
-  if (d.linter) lines.push(`- **Linter**: ${d.linter}`);
-  if (d.formatter) lines.push(`- **Formatter**: ${d.formatter}`);
-  if (d.runtime && d.runtime !== "node") lines.push(`- **Runtime**: ${d.runtime}`);
+  if (d.orm) lines.push(`- **${m.stackLabels.orm}**: ${d.orm}`);
+  if (d.database) lines.push(`- **${m.stackLabels.database}**: ${d.database}`);
+  if (d.auth) lines.push(`- **${m.stackLabels.auth}**: ${d.auth}`);
+  if (d.validation) lines.push(`- **${m.stackLabels.validation}**: ${d.validation}`);
+  if (d.css) lines.push(`- **${m.stackLabels.css}**: ${d.css}`);
+  if (d.uiComponents) lines.push(`- **${m.stackLabels.uiComponents}**: ${d.uiComponents}`);
+  if (d.testing) lines.push(`- **${m.stackLabels.testing}**: ${d.testing}`);
+  if (d.stateManagement) lines.push(`- **${m.stackLabels.stateManagement}**: ${d.stateManagement}`);
+  if (d.apiStyle) lines.push(`- **${m.stackLabels.apiStyle}**: ${d.apiStyle}`);
+  if (d.i18n) lines.push(`- **${m.stackLabels.i18n}**: ${d.i18n}`);
+  if (d.payments) lines.push(`- **${m.stackLabels.payments}**: ${d.payments}`);
+  if (d.email) lines.push(`- **${m.stackLabels.email}**: ${d.email}`);
+  if (d.realtime) lines.push(`- **${m.stackLabels.realtime}**: ${d.realtime}`);
+  if (d.cms) lines.push(`- **${m.stackLabels.cms}**: ${d.cms}`);
+  if (d.fileUpload) lines.push(`- **${m.stackLabels.fileUpload}**: ${d.fileUpload}`);
+  if (d.jobs) lines.push(`- **${m.stackLabels.jobs}**: ${d.jobs}`);
+  if (d.monorepo) lines.push(`- **${m.stackLabels.monorepo}**: ${d.monorepo}`);
+  if (d.deployment) lines.push(`- **${m.stackLabels.deployment}**: ${d.deployment}`);
+  if (d.linter) lines.push(`- **${m.stackLabels.linter}**: ${d.linter}`);
+  if (d.formatter) lines.push(`- **${m.stackLabels.formatter}**: ${d.formatter}`);
+  if (d.runtime && d.runtime !== "node") lines.push(`- **${m.stackLabels.runtime}**: ${d.runtime}`);
   lines.push("");
 
   // Project structure
-  lines.push("## Project Structure");
+  lines.push(`## ${m.sections.projectStructure}`);
   lines.push("");
   const s = analysis.structure;
-  if (s.hasSrcDir) lines.push("- Source code in `src/`");
-  if (s.hasAppDir) lines.push("- App Router: `app/`");
-  if (s.hasPagesDir) lines.push("- Pages Router: `pages/`");
-  if (s.hasApiRoutes) lines.push("- API routes present");
-  if (s.hasMiddleware) lines.push("- Middleware configured");
-  if (s.hasComponentsDir) lines.push("- Components: `components/`");
-  if (s.hasLibDir) lines.push("- Shared utilities: `lib/`");
-  if (s.hasServicesDir) lines.push("- Services: `services/`");
-  if (s.hasHooksDir) lines.push("- Custom hooks: `hooks/`");
-  if (s.hasStoreDir) lines.push("- State stores: `store/`");
-  if (s.hasSchemasDir) lines.push("- Validation schemas: `schemas/`");
-  if (s.hasTypesDir) lines.push("- Type definitions: `types/`");
-  if (s.hasConfigDir) lines.push("- Configuration: `config/`");
-  if (s.hasProvidersDir) lines.push("- React providers: `providers/`");
-  if (s.hasPrismaSchema) lines.push("- Prisma schema: `prisma/schema.prisma`");
+  if (s.hasSrcDir) lines.push(`- ${m.structure.srcDir}`);
+  if (s.hasAppDir) lines.push(`- ${m.structure.appRouter}`);
+  if (s.hasPagesDir) lines.push(`- ${m.structure.pagesRouter}`);
+  if (s.hasApiRoutes) lines.push(`- ${m.structure.apiRoutes}`);
+  if (s.hasMiddleware) lines.push(`- ${m.structure.middleware}`);
+  if (s.hasComponentsDir) lines.push(`- ${m.structure.components}`);
+  if (s.hasLibDir) lines.push(`- ${m.structure.sharedUtils}`);
+  if (s.hasServicesDir) lines.push(`- ${m.structure.services}`);
+  if (s.hasHooksDir) lines.push(`- ${m.structure.customHooks}`);
+  if (s.hasStoreDir) lines.push(`- ${m.structure.stateStores}`);
+  if (s.hasSchemasDir) lines.push(`- ${m.structure.validationSchemas}`);
+  if (s.hasTypesDir) lines.push(`- ${m.structure.typeDefinitions}`);
+  if (s.hasConfigDir) lines.push(`- ${m.structure.configuration}`);
+  if (s.hasProvidersDir) lines.push(`- ${m.structure.reactProviders}`);
+  if (s.hasPrismaSchema) lines.push(`- ${m.structure.prismaSchema}`);
   lines.push("");
 
   // Scripts
   const scripts = Object.entries(analysis.scripts);
   if (scripts.length > 0) {
-    lines.push("## Available Scripts");
+    lines.push(`## ${m.sections.availableScripts}`);
     lines.push("");
     for (const [name, cmd] of scripts) {
       lines.push(`- \`npm run ${name}\` → \`${cmd}\``);
@@ -182,32 +191,30 @@ export function generateClaudeMd(
   }
 
   // File naming conventions
-  lines.push("## File & Naming Conventions");
+  lines.push(`## ${m.sections.fileNaming}`);
   lines.push("");
-  lines.push("- **Files**: kebab-case (e.g., `user-profile.ts`, `auth-utils.ts`)");
-  lines.push("- **React components**: PascalCase filename matching component name (e.g., `UserProfile.tsx` exports `UserProfile`)");
-  lines.push("- **Hooks**: camelCase prefixed with `use` (e.g., `useAuth.ts`)");
-  lines.push("- **Constants/config**: SCREAMING_SNAKE_CASE for values, kebab-case for files");
+  lines.push(`- ${m.naming.files}`);
+  lines.push(`- ${m.naming.reactComponents}`);
+  lines.push(`- ${m.naming.hooks}`);
+  lines.push(`- ${m.naming.constants}`);
   if (s.hasSrcDir) {
-    lines.push("- **New files**: Place in `src/` following the existing directory structure");
+    lines.push(`- ${m.naming.newFilesSrc}`);
   }
   lines.push("");
 
   // Import ordering
-  lines.push("## Import Ordering");
+  lines.push(`## ${m.sections.importOrdering}`);
   lines.push("");
   lines.push("```");
-  lines.push("1. Node.js builtins (node:fs, node:path)");
-  lines.push("2. External packages (react, next, etc.)");
-  lines.push("3. Internal aliases (@/ or ~/)");
-  lines.push("4. Relative imports (../ and ./)");
-  lines.push("5. Type imports (import type { ... })");
+  for (const step of m.importOrder) {
+    lines.push(step);
+  }
   lines.push("```");
   lines.push("");
 
   // Conventions
   if (conventions.length > 0) {
-    lines.push("## Conventions (MUST follow)");
+    lines.push(`## ${m.sections.conventions}`);
     lines.push("");
     for (const conv of conventions) {
       lines.push(`### ${conv.description}`);
@@ -219,7 +226,7 @@ export function generateClaudeMd(
 
   // Cross-stack rules
   if (crossRefs.length > 0) {
-    lines.push("## Cross-Stack Rules (CRITICAL)");
+    lines.push(`## ${m.sections.crossStackRules}`);
     lines.push("");
     for (const cr of crossRefs) {
       lines.push(`### ${cr.techs.join(" + ")}`);
@@ -239,7 +246,7 @@ export function generateClaudeMd(
 
   // Interdictions
   if (interdictions.length > 0) {
-    lines.push("## Interdictions (NEVER do)");
+    lines.push(`## ${m.sections.interdictions}`);
     lines.push("");
     for (const inter of interdictions) {
       lines.push(`- ${inter}`);
@@ -250,7 +257,7 @@ export function generateClaudeMd(
   // User choices
   const choiceEntries = Object.entries(choices);
   if (choiceEntries.length > 0) {
-    lines.push("## Project Decisions");
+    lines.push(`## ${m.sections.projectDecisions}`);
     lines.push("");
     for (const [topic, choice] of choiceEntries) {
       lines.push(`- **${topic}**: ${choice}`);
@@ -262,25 +269,29 @@ export function generateClaudeMd(
   if (patterns) {
     const patternLines: string[] = [];
     if (patterns.totalComponents > 0) {
-      patternLines.push(`- **Client/Server ratio**: ${patterns.useClientCount} client components out of ${patterns.totalComponents} total (${Math.round(patterns.clientRatio * 100)}% client)`);
+      patternLines.push(`- ${interpolate(m.patterns.clientServerRatio, {
+        clientCount: patterns.useClientCount,
+        totalCount: patterns.totalComponents,
+        clientPercent: Math.round(patterns.clientRatio * 100),
+      })}`);
     }
     if (patterns.useServerCount > 0) {
-      patternLines.push(`- **Server Actions**: ${patterns.useServerCount} files with 'use server'`);
+      patternLines.push(`- ${interpolate(m.patterns.serverActions, { count: patterns.useServerCount })}`);
     }
     if (patterns.usesPathAlias) {
-      patternLines.push("- **Path aliases**: Project uses @/ or ~/ imports — keep using them");
+      patternLines.push(`- ${m.patterns.pathAliases}`);
     }
     if (patterns.hasBarrelFiles) {
-      patternLines.push("- **Barrel files**: Project uses index.ts re-exports — follow this pattern");
+      patternLines.push(`- ${m.patterns.barrelFiles}`);
     }
     if (patterns.largeFiles.length > 0) {
-      patternLines.push(`- **Large files** (>300 lines): ${patterns.largeFiles.length} file(s) — consider splitting`);
+      patternLines.push(`- ${interpolate(m.patterns.largeFiles, { count: patterns.largeFiles.length })}`);
     }
     if (patterns.consoleLogCount > 0) {
-      patternLines.push(`- **Console.log**: ${patterns.consoleLogCount} occurrences found — clean up before production`);
+      patternLines.push(`- ${interpolate(m.patterns.consoleLogs, { count: patterns.consoleLogCount })}`);
     }
     if (patternLines.length > 0) {
-      lines.push("## Existing Code Patterns");
+      lines.push(`## ${m.sections.existingPatterns}`);
       lines.push("");
       lines.push(...patternLines);
       lines.push("");
@@ -288,9 +299,9 @@ export function generateClaudeMd(
   }
 
   // Dynamic Claude Code instructions
-  lines.push("## Claude Code Instructions");
+  lines.push(`## ${m.sections.claudeInstructions}`);
   lines.push("");
-  const instructions = buildDynamicInstructions(analysis);
+  const instructions = buildDynamicInstructions(analysis, locale);
   for (const instr of instructions) {
     lines.push(instr);
   }

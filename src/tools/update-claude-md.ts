@@ -13,6 +13,8 @@ import {
 } from "../rules/index.js";
 import { generateClaudeMd } from "../templates/claude-md.js";
 import type { RepoAnalysis } from "../types.js";
+import type { Locale } from "../i18n/types.js";
+import { getMessages, interpolate } from "../i18n/index.js";
 
 /**
  * Extract user-added sections from an existing CLAUDE.md.
@@ -20,8 +22,9 @@ import type { RepoAnalysis } from "../types.js";
  */
 function extractUserChoices(existingContent: string): Record<string, string> {
   const choices: Record<string, string> = {};
+  // Match both English and French section headers
   const decisionsMatch = existingContent.match(
-    /## Project Decisions\n+([\s\S]*?)(?=\n## |$)/
+    /## (?:Project Decisions|Décisions du projet)\n+([\s\S]*?)(?=\n## |$)/
   );
   if (decisionsMatch) {
     const lines = decisionsMatch[1].trim().split("\n");
@@ -35,6 +38,14 @@ function extractUserChoices(existingContent: string): Record<string, string> {
   return choices;
 }
 
+/** Detect locale of existing CLAUDE.md by checking for French section headers */
+function detectExistingLocale(content: string): Locale {
+  if (content.includes("## Vue d'ensemble") || content.includes("## Stack technique") || content.includes("## Décisions du projet")) {
+    return "fr";
+  }
+  return "en";
+}
+
 export function registerUpdateClaudeMd(server: McpServer): void {
   server.registerTool(
     "update-claude-md",
@@ -46,30 +57,40 @@ export function registerUpdateClaudeMd(server: McpServer): void {
         projectPath: z
           .string()
           .describe("Absolute path to the project root directory"),
+        language: z
+          .enum(["en", "fr"])
+          .optional()
+          .describe("Output language. If omitted, keeps the language of the existing CLAUDE.md (default: en for new files)"),
       },
     },
-    async ({ projectPath }) => {
+    async ({ projectPath, language }) => {
       try {
         // Verify project path
         try {
           await stat(projectPath);
         } catch {
+          const msg = getMessages(language ?? "en");
           return {
             isError: true,
-            content: [{ type: "text" as const, text: `Project directory not found: ${projectPath}` }],
+            content: [{ type: "text" as const, text: interpolate(msg.tools.dirNotFound, { path: projectPath }) }],
           };
         }
 
         const claudeMdPath = join(projectPath, "CLAUDE.md");
 
-        // Extract existing choices if CLAUDE.md exists
+        // Extract existing choices and detect locale if CLAUDE.md exists
         let previousChoices: Record<string, string> = {};
+        let detectedLocale: Locale = "en";
         try {
           const existing = await readFile(claudeMdPath, "utf-8");
           previousChoices = extractUserChoices(existing);
+          detectedLocale = detectExistingLocale(existing);
         } catch {
           // No existing file — that's fine
         }
+
+        const locale: Locale = language ?? detectedLocale;
+        const msg = getMessages(locale);
 
         // Re-analyze
         const pkg = await analyzeDependencies(projectPath);
@@ -100,7 +121,8 @@ export function registerUpdateClaudeMd(server: McpServer): void {
           interdictions,
           crossRefs,
           previousChoices,
-          patterns
+          patterns,
+          locale
         );
 
         await writeFile(claudeMdPath, content, "utf-8");
@@ -112,7 +134,8 @@ export function registerUpdateClaudeMd(server: McpServer): void {
               text: JSON.stringify(
                 {
                   path: claudeMdPath,
-                  message: "CLAUDE.md updated successfully",
+                  message: msg.tools.updateSuccess,
+                  language: locale,
                   preservedChoices: Object.keys(previousChoices).length,
                   sections: {
                     conventions: conventions.length,

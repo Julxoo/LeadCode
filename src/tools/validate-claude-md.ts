@@ -12,6 +12,8 @@ import {
   detectGaps,
 } from "../rules/index.js";
 import type { RepoAnalysis } from "../types.js";
+import type { Locale } from "../i18n/types.js";
+import { getMessages, interpolate } from "../i18n/index.js";
 
 interface Drift {
   type: "missing" | "outdated" | "extra";
@@ -30,17 +32,24 @@ export function registerValidateClaudeMd(server: McpServer): void {
         projectPath: z
           .string()
           .describe("Absolute path to the project root directory"),
+        language: z
+          .enum(["en", "fr"])
+          .optional()
+          .describe("Output language for validation messages (default: en)"),
       },
     },
-    async ({ projectPath }) => {
+    async ({ projectPath, language }) => {
       try {
+        const locale: Locale = language ?? "en";
+        const msg = getMessages(locale);
+
         const claudeMdPath = join(projectPath, "CLAUDE.md");
         try {
           await stat(claudeMdPath);
         } catch {
           return {
             isError: true,
-            content: [{ type: "text" as const, text: `No CLAUDE.md found at ${claudeMdPath}. Use generate-claude-md first.` }],
+            content: [{ type: "text" as const, text: interpolate(msg.validation.noClaudeMd, { path: claudeMdPath }) }],
           };
         }
 
@@ -73,22 +82,22 @@ export function registerValidateClaudeMd(server: McpServer): void {
             drifts.push({
               type: "outdated",
               section: "Stack",
-              message: `Framework version ${framework.version} not found in CLAUDE.md. Version may have been updated.`,
+              message: interpolate(msg.validation.frameworkVersionOutdated, { version: framework.version }),
             });
           }
         }
 
         // Check for new techs not mentioned
         const techFields: [string, string | null][] = [
-          ["ORM", detected.orm],
-          ["Auth", detected.auth],
-          ["Validation", detected.validation],
-          ["CSS", detected.css],
-          ["Testing", detected.testing],
-          ["i18n", detected.i18n],
-          ["Payments", detected.payments],
-          ["State Management", detected.stateManagement],
-          ["UI Components", detected.uiComponents],
+          [msg.templates.stackLabels.orm, detected.orm],
+          [msg.templates.stackLabels.auth, detected.auth],
+          [msg.templates.stackLabels.validation, detected.validation],
+          [msg.templates.stackLabels.css, detected.css],
+          [msg.templates.stackLabels.testing, detected.testing],
+          [msg.templates.stackLabels.i18n, detected.i18n],
+          [msg.templates.stackLabels.payments, detected.payments],
+          [msg.templates.stackLabels.stateManagement, detected.stateManagement],
+          [msg.templates.stackLabels.uiComponents, detected.uiComponents],
         ];
 
         for (const [label, value] of techFields) {
@@ -96,7 +105,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
             drifts.push({
               type: "missing",
               section: "Stack",
-              message: `${label}: ${value} is in the project but not mentioned in CLAUDE.md.`,
+              message: interpolate(msg.validation.techMissing, { label, value }),
             });
           }
         }
@@ -108,7 +117,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
             drifts.push({
               type: "missing",
               section: "Conventions",
-              message: `Convention "${conv.description}" is applicable but not in CLAUDE.md.`,
+              message: interpolate(msg.validation.conventionMissing, { description: conv.description }),
             });
           }
         }
@@ -121,7 +130,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
             drifts.push({
               type: "missing",
               section: "Cross-Stack Rules",
-              message: `Cross-stack rule for ${combo} is applicable but not in CLAUDE.md.`,
+              message: interpolate(msg.validation.crossStackMissing, { combo }),
             });
           }
         }
@@ -133,7 +142,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
           drifts.push({
             type: "missing",
             section: "Gaps",
-            message: `High-severity gap still exists: ${gap.message}`,
+            message: interpolate(msg.validation.gapStillExists, { message: gap.message }),
           });
         }
 
@@ -147,8 +156,8 @@ export function registerValidateClaudeMd(server: McpServer): void {
                   drifts,
                   total: drifts.length,
                   summary: drifts.length === 0
-                    ? "CLAUDE.md is in sync with the project."
-                    : `Found ${drifts.length} drift(s). Consider running generate-claude-md to update.`,
+                    ? msg.validation.inSync
+                    : interpolate(msg.validation.driftsFound, { count: drifts.length }),
                 },
                 null,
                 2
