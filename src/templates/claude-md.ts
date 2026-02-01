@@ -47,38 +47,6 @@ function describeArchitecture(analysis: RepoAnalysis, locale: Locale): string[] 
   return lines;
 }
 
-function buildDynamicInstructions(analysis: RepoAnalysis, locale: Locale): string[] {
-  const m = getMessages(locale).templates.instructions;
-  const lines: string[] = [];
-  const f = analysis.framework;
-  const d = analysis.detected;
-
-  lines.push(`- ${m.followAll}`);
-  lines.push(`- ${m.respectStructure}`);
-  lines.push(`- ${m.checkPrecedent}`);
-  lines.push(`- ${m.neverNewDeps}`);
-  lines.push(`- ${m.smallChanges}`);
-
-  if (f?.name === "next" && f.variant === "app-router") {
-    lines.push(`- ${m.serverComponents}`);
-    lines.push(`- ${m.appRouterPages}`);
-    lines.push(`- ${m.serverActions}`);
-  }
-
-  if (d.orm === "prisma") lines.push(`- ${m.prismaAfterChange}`);
-  else if (d.orm === "drizzle") lines.push(`- ${m.drizzleAfterChange}`);
-
-  if (d.validation === "zod") lines.push(`- ${m.zodValidate}`);
-  if (d.css === "tailwind") lines.push(`- ${m.tailwindClasses}`);
-  if (d.uiComponents === "shadcn") lines.push(`- ${m.shadcnComponents}`);
-
-  if (d.testing) lines.push(`- ${interpolate(m.runTests, { testing: d.testing })}`);
-  if (d.linter) lines.push(`- ${interpolate(m.runLinter, { linter: d.linter })}`);
-  if (d.i18n) lines.push(`- ${m.i18nStrings}`);
-
-  return lines;
-}
-
 /** Format a tech name for display as section header */
 function techDisplayName(tech: string): string {
   const names: Record<string, string> = {
@@ -141,6 +109,8 @@ export function generateClaudeMd(
 ): string {
   const m = getMessages(locale).templates;
   const lines: string[] = [];
+  const d = analysis.detected;
+  const s = analysis.structure;
 
   // Header
   lines.push(`# ${interpolate(m.header.title, { name: analysis.projectName })}`);
@@ -149,86 +119,74 @@ export function generateClaudeMd(
   lines.push(`> ${m.header.meta2}`);
   lines.push("");
 
-  // Architecture overview
+  // Project overview: architecture + stack + structure in one section
+  lines.push(`## ${m.sections.architectureOverview}`);
+  lines.push("");
   const archLines = describeArchitecture(analysis, locale);
-  if (archLines.length > 0) {
-    lines.push(`## ${m.sections.architectureOverview}`);
-    lines.push("");
-    lines.push(...archLines);
-    lines.push("");
-  }
-
-  // Stack details
-  lines.push(`## ${m.sections.stack}`);
-  lines.push("");
-  if (analysis.framework) {
-    const variant = analysis.framework.variant ? ` (${analysis.framework.variant})` : "";
-    lines.push(`- **${m.stackLabels.framework}**: ${analysis.framework.name} ${analysis.framework.version}${variant}`);
-  }
-  const d = analysis.detected;
-  if (d.orm) lines.push(`- **${m.stackLabels.orm}**: ${d.orm}`);
-  if (d.database) lines.push(`- **${m.stackLabels.database}**: ${d.database}`);
-  if (d.auth) lines.push(`- **${m.stackLabels.auth}**: ${d.auth}`);
-  if (d.validation) lines.push(`- **${m.stackLabels.validation}**: ${d.validation}`);
-  if (d.css) lines.push(`- **${m.stackLabels.css}**: ${d.css}`);
-  if (d.uiComponents) lines.push(`- **${m.stackLabels.uiComponents}**: ${d.uiComponents}`);
-  if (d.testing) lines.push(`- **${m.stackLabels.testing}**: ${d.testing}`);
-  if (d.stateManagement) lines.push(`- **${m.stackLabels.stateManagement}**: ${d.stateManagement}`);
-  if (d.dataFetching) lines.push(`- **${m.stackLabels.dataFetching}**: ${d.dataFetching}`);
-  if (d.formLibrary) lines.push(`- **${m.stackLabels.formLibrary}**: ${d.formLibrary}`);
-  if (d.apiStyle) lines.push(`- **${m.stackLabels.apiStyle}**: ${d.apiStyle}`);
-  if (d.i18n) lines.push(`- **${m.stackLabels.i18n}**: ${d.i18n}`);
-  if (d.payments) lines.push(`- **${m.stackLabels.payments}**: ${d.payments}`);
-  if (d.email) lines.push(`- **${m.stackLabels.email}**: ${d.email}`);
-  if (d.realtime) lines.push(`- **${m.stackLabels.realtime}**: ${d.realtime}`);
-  if (d.cms) lines.push(`- **${m.stackLabels.cms}**: ${d.cms}`);
-  if (d.fileUpload) lines.push(`- **${m.stackLabels.fileUpload}**: ${d.fileUpload}`);
-  if (d.jobs) lines.push(`- **${m.stackLabels.jobs}**: ${d.jobs}`);
-  if (d.monorepo) lines.push(`- **${m.stackLabels.monorepo}**: ${d.monorepo}`);
-  if (d.deployment) lines.push(`- **${m.stackLabels.deployment}**: ${d.deployment}`);
-  if (d.linter) lines.push(`- **${m.stackLabels.linter}**: ${d.linter}`);
-  if (d.formatter) lines.push(`- **${m.stackLabels.formatter}**: ${d.formatter}`);
-  if (d.runtime && d.runtime !== "node") lines.push(`- **${m.stackLabels.runtime}**: ${d.runtime}`);
+  lines.push(...archLines);
   lines.push("");
 
-  // Project structure
-  lines.push(`## ${m.sections.projectStructure}`);
-  lines.push("");
-  const s = analysis.structure;
-  if (s.hasSrcDir) lines.push(`- ${m.structure.srcDir}`);
-  if (s.hasAppDir) lines.push(`- ${m.structure.appRouter}`);
-  if (s.hasPagesDir) lines.push(`- ${m.structure.pagesRouter}`);
-  if (s.hasApiRoutes) lines.push(`- ${m.structure.apiRoutes}`);
-  if (s.hasMiddleware) lines.push(`- ${m.structure.middleware}`);
-  if (s.hasComponentsDir) lines.push(`- ${m.structure.components}`);
-  if (s.hasLibDir) lines.push(`- ${m.structure.sharedUtils}`);
-  if (s.hasServicesDir) lines.push(`- ${m.structure.services}`);
-  if (s.hasHooksDir) lines.push(`- ${m.structure.customHooks}`);
-  if (s.hasStoreDir) lines.push(`- ${m.structure.stateStores}`);
-  if (s.hasSchemasDir) lines.push(`- ${m.structure.validationSchemas}`);
-  if (s.hasTypesDir) lines.push(`- ${m.structure.typeDefinitions}`);
-  if (s.hasConfigDir) lines.push(`- ${m.structure.configuration}`);
-  if (s.hasProvidersDir) lines.push(`- ${m.structure.reactProviders}`);
-  if (s.hasPrismaSchema) lines.push(`- ${m.structure.prismaSchema}`);
-  lines.push("");
+  // Structure
+  const structLines: string[] = [];
+  if (s.hasSrcDir) structLines.push(m.structure.srcDir);
+  if (s.hasAppDir) structLines.push(m.structure.appRouter);
+  if (s.hasPagesDir) structLines.push(m.structure.pagesRouter);
+  if (s.hasApiRoutes) structLines.push(m.structure.apiRoutes);
+  if (s.hasMiddleware) structLines.push(m.structure.middleware);
+  if (s.hasComponentsDir) structLines.push(m.structure.components);
+  if (s.hasLibDir) structLines.push(m.structure.sharedUtils);
+  if (s.hasServicesDir) structLines.push(m.structure.services);
+  if (s.hasHooksDir) structLines.push(m.structure.customHooks);
+  if (s.hasStoreDir) structLines.push(m.structure.stateStores);
+  if (s.hasSchemasDir) structLines.push(m.structure.validationSchemas);
+  if (s.hasTypesDir) structLines.push(m.structure.typeDefinitions);
+  if (s.hasConfigDir) structLines.push(m.structure.configuration);
+  if (s.hasProvidersDir) structLines.push(m.structure.reactProviders);
+  if (s.hasPrismaSchema) structLines.push(m.structure.prismaSchema);
+  if (structLines.length > 0) {
+    lines.push("**Structure:**");
+    for (const sl of structLines) lines.push(`- ${sl}`);
+    lines.push("");
+  }
 
   // Scripts
   const scripts = Object.entries(analysis.scripts);
   if (scripts.length > 0) {
-    lines.push(`## ${m.sections.availableScripts}`);
-    lines.push("");
+    lines.push("**Scripts:**");
     for (const [name, cmd] of scripts) {
       lines.push(`- \`npm run ${name}\` → \`${cmd}\``);
     }
     lines.push("");
   }
 
-  // Per-tech documentation (from Context7)
+  // Existing code patterns (merged into overview)
+  if (patterns) {
+    const patternLines: string[] = [];
+    if (patterns.totalComponents > 0) {
+      patternLines.push(interpolate(m.patterns.clientServerRatio, {
+        clientCount: patterns.useClientCount,
+        totalCount: patterns.totalComponents,
+        clientPercent: Math.round(patterns.clientRatio * 100),
+      }));
+    }
+    if (patterns.useServerCount > 0) {
+      patternLines.push(interpolate(m.patterns.serverActions, { count: patterns.useServerCount }));
+    }
+    if (patterns.usesPathAlias) patternLines.push(m.patterns.pathAliases);
+    if (patterns.hasBarrelFiles) patternLines.push(m.patterns.barrelFiles);
+    if (patternLines.length > 0) {
+      lines.push("**Codebase patterns:**");
+      for (const pl of patternLines) lines.push(`- ${pl}`);
+      lines.push("");
+    }
+  }
+
+  // Per-tech documentation (from Context7 + WebSearch)
   const techEntries = Object.entries(docs.techDocs);
   if (techEntries.length > 0) {
     for (const [tech, docContent] of techEntries) {
       if (!docContent.trim()) continue;
-      lines.push(`## ${techDisplayName(tech)} Conventions`);
+      lines.push(`## ${techDisplayName(tech)}`);
       lines.push("");
       lines.push(docContent.trim());
       lines.push("");
@@ -250,24 +208,15 @@ export function generateClaudeMd(
     }
   }
 
-  // File naming conventions
-  lines.push(`## ${m.sections.fileNaming}`);
+  // Conventions: naming + imports in one section
+  lines.push("## Conventions");
   lines.push("");
   lines.push(`- ${m.naming.files}`);
   lines.push(`- ${m.naming.reactComponents}`);
   lines.push(`- ${m.naming.hooks}`);
   lines.push(`- ${m.naming.constants}`);
   if (s.hasSrcDir) lines.push(`- ${m.naming.newFilesSrc}`);
-  lines.push("");
-
-  // Import ordering
-  lines.push(`## ${m.sections.importOrdering}`);
-  lines.push("");
-  lines.push("```");
-  for (const step of m.importOrder) {
-    lines.push(step);
-  }
-  lines.push("```");
+  lines.push(`- Import order: Node builtins → external packages → internal aliases (@/) → relative imports → type imports`);
   lines.push("");
 
   // User choices
@@ -280,44 +229,6 @@ export function generateClaudeMd(
     }
     lines.push("");
   }
-
-  // Existing code patterns
-  if (patterns) {
-    const patternLines: string[] = [];
-    if (patterns.totalComponents > 0) {
-      patternLines.push(`- ${interpolate(m.patterns.clientServerRatio, {
-        clientCount: patterns.useClientCount,
-        totalCount: patterns.totalComponents,
-        clientPercent: Math.round(patterns.clientRatio * 100),
-      })}`);
-    }
-    if (patterns.useServerCount > 0) {
-      patternLines.push(`- ${interpolate(m.patterns.serverActions, { count: patterns.useServerCount })}`);
-    }
-    if (patterns.usesPathAlias) patternLines.push(`- ${m.patterns.pathAliases}`);
-    if (patterns.hasBarrelFiles) patternLines.push(`- ${m.patterns.barrelFiles}`);
-    if (patterns.largeFiles.length > 0) {
-      patternLines.push(`- ${interpolate(m.patterns.largeFiles, { count: patterns.largeFiles.length })}`);
-    }
-    if (patterns.consoleLogCount > 0) {
-      patternLines.push(`- ${interpolate(m.patterns.consoleLogs, { count: patterns.consoleLogCount })}`);
-    }
-    if (patternLines.length > 0) {
-      lines.push(`## ${m.sections.existingPatterns}`);
-      lines.push("");
-      lines.push(...patternLines);
-      lines.push("");
-    }
-  }
-
-  // Dynamic Claude Code instructions
-  lines.push(`## ${m.sections.claudeInstructions}`);
-  lines.push("");
-  const instructions = buildDynamicInstructions(analysis, locale);
-  for (const instr of instructions) {
-    lines.push(instr);
-  }
-  lines.push("");
 
   return lines.join("\n");
 }
