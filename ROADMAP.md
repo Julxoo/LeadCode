@@ -9,6 +9,7 @@ Analyse un projet existant, génère un CLAUDE.md concis avec des conventions ac
 **Ce qui est fait :**
 - Détection du stack complet (framework, ORM, auth, CSS, testing, state, i18n, payments, etc.)
 - Analyse des patterns du code (ratio client/server, path aliases, barrel files)
+- Conventions auto-détectées du code source (file naming, import order, indentation, quotes, React/hooks si présent)
 - Docs officielles via Context7 (conventions par tech)
 - Best practices communautaires via WebSearch (architecture, gotchas, breaking changes)
 - Synthèse cross-stack unifiée (comment toutes les techs fonctionnent ensemble)

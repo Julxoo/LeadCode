@@ -119,11 +119,16 @@ Next.js (App/Pages Router), Nuxt, Remix, Astro, SvelteKit, SolidStart, Vite+Reac
 | Monorepo | Turborepo, Nx, Lerna |
 | Runtime | Node, Bun, Deno |
 
-### Code Patterns
+### Code Patterns & Conventions (auto-detected)
 - Client/Server component ratio
 - `'use server'` file count
 - Path alias usage (`@/` or `~/`)
 - Barrel file patterns
+- File naming style (kebab-case, camelCase, PascalCase, snake_case)
+- Import order pattern
+- Indentation (tabs vs spaces, 2 or 4)
+- Quote style (single vs double)
+- React/hooks presence (conventions only shown when detected)
 
 ## What Gets Generated
 
@@ -132,7 +137,7 @@ The `CLAUDE.md` is organized into:
 1. **Architecture Overview** — Framework, data layer, auth, project size, structure, scripts, code patterns
 2. **Per-Technology Sections** — 3-5 concise, actionable rules per tech (from Context7 official docs + WebSearch)
 3. **Cross-Stack Conventions** — Unified rules for how all detected technologies work together
-4. **Conventions** — File naming and import ordering
+4. **Conventions** — 100% auto-detected from your codebase (naming, imports, indentation, quotes, React conventions only if React is used)
 5. **Project Decisions** — User choices preserved across regenerations
 
 ## Requirements
