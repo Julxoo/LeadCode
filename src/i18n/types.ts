@@ -8,14 +8,7 @@ export interface TemplateMessages {
   };
   sections: {
     architectureOverview: string;
-    stack: string;
-    projectStructure: string;
-    availableScripts: string;
-    fileNaming: string;
-    importOrdering: string;
     projectDecisions: string;
-    existingPatterns: string;
-    claudeInstructions: string;
   };
   architecture: {
     frontendBackend: string;
@@ -42,32 +35,6 @@ export interface TemplateMessages {
     sizeVeryLarge: string;
     sourceFiles: string;
   };
-  stackLabels: {
-    framework: string;
-    orm: string;
-    database: string;
-    auth: string;
-    validation: string;
-    css: string;
-    uiComponents: string;
-    testing: string;
-    stateManagement: string;
-    dataFetching: string;
-    formLibrary: string;
-    apiStyle: string;
-    i18n: string;
-    payments: string;
-    email: string;
-    realtime: string;
-    cms: string;
-    fileUpload: string;
-    jobs: string;
-    monorepo: string;
-    deployment: string;
-    linter: string;
-    formatter: string;
-    runtime: string;
-  };
   structure: {
     srcDir: string;
     appRouter: string;
@@ -84,32 +51,6 @@ export interface TemplateMessages {
     configuration: string;
     reactProviders: string;
     prismaSchema: string;
-  };
-  naming: {
-    files: string;
-    reactComponents: string;
-    hooks: string;
-    constants: string;
-    newFilesSrc: string;
-  };
-  importOrder: string[];
-  instructions: {
-    followAll: string;
-    respectStructure: string;
-    checkPrecedent: string;
-    neverNewDeps: string;
-    smallChanges: string;
-    serverComponents: string;
-    appRouterPages: string;
-    serverActions: string;
-    prismaAfterChange: string;
-    drizzleAfterChange: string;
-    zodValidate: string;
-    tailwindClasses: string;
-    shadcnComponents: string;
-    runTests: string;
-    runLinter: string;
-    i18nStrings: string;
   };
   patterns: {
     clientServerRatio: string;

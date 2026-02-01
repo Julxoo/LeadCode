@@ -1,6 +1,6 @@
 # LeadCode
 
-**Your virtual Lead Tech for Claude Code.** An MCP server that analyzes your codebase, fetches up-to-date documentation for each detected technology via [Context7](https://context7.com), and generates a tailored `CLAUDE.md` — so Claude Code understands your project like a senior engineer would.
+**Your virtual Lead Tech for Claude Code.** An MCP server that analyzes your codebase, then guides Claude to fetch up-to-date documentation via [Context7](https://context7.com) and community best practices via WebSearch — producing a tailored, concise `CLAUDE.md` so Claude Code understands your project like a senior engineer would.
 
 [![npm version](https://img.shields.io/npm/v/leadcode.svg)](https://www.npmjs.com/package/leadcode)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -17,24 +17,29 @@ Claude Code is powerful, but its output quality depends on context. Without clea
 - Forget auth checks on new routes
 - Use inline styles when your project uses Tailwind
 
-**LeadCode fixes this.** It scans your project, detects what you're using, fetches the latest documentation for each technology, cross-references them, and generates a `CLAUDE.md` file that tells Claude Code exactly how to behave in your codebase.
+**LeadCode fixes this.** It scans your project, detects your stack, and orchestrates Claude to fetch official docs + community best practices for each technology — then synthesizes everything into a compact `CLAUDE.md` with actionable rules.
 
 ## How It Works
 
 ```
-Your Project ──→ LeadCode (detect stack) ──→ Context7 (fetch docs) ──→ CLAUDE.md
+Your Project ──→ LeadCode (analyze) ──→ Claude reads tech-queries resource
+                                          ↓
+                              Context7 MCP (official docs × N techs)
+                              WebSearch (best practices, architecture, gotchas)
+                                          ↓
+                              Claude synthesizes 3-5 rules per tech
+                                          ↓
+                              LeadCode (generate) ──→ CLAUDE.md
 ```
 
 1. **Analyze** — Scans `package.json`, directory structure, and source code patterns
 2. **Detect** — Identifies your stack across 25+ categories (framework, ORM, auth, CSS, testing, i18n, etc.)
-3. **Fetch Docs** — Queries Context7 API for up-to-date documentation of each detected technology, including cross-technology best practices (e.g., "how to use Prisma with Next.js App Router")
-4. **Generate** — Writes a structured `CLAUDE.md` with real, version-specific conventions from official docs
+3. **Fetch & Synthesize** — Claude reads the tech-queries mapping, calls Context7 for official docs and WebSearch for community knowledge, then synthesizes into concise actionable rules
+4. **Generate** — Writes a structured `CLAUDE.md` (~100-150 lines) with version-specific conventions
 
 ## Installation
 
 LeadCode requires **two MCP servers**: LeadCode itself and Context7 (for documentation fetching).
-
-**Two commands:**
 
 ```bash
 claude mcp add --scope project leadcode -- npx -y leadcode@latest
@@ -44,14 +49,6 @@ claude mcp add --scope project context7 -- npx -y @upstash/context7-mcp@latest
 Restart Claude Code and you're ready.
 
 > Use `--scope user` instead of `--scope project` to install globally across all your projects.
-
-**Optional:** Set a Context7 API key for higher rate limits (free tier works without it):
-
-```bash
-export CONTEXT7_API_KEY=your_key_here
-```
-
-Get a key at [context7.com/dashboard](https://context7.com/dashboard).
 
 ## Usage
 
@@ -63,30 +60,34 @@ Use the built-in prompt in Claude Code:
 Use the setup-project prompt with /path/to/your/project
 ```
 
-This walks through the full workflow: analyze → fetch docs → generate `CLAUDE.md`.
+This walks through the full workflow: analyze → fetch docs → synthesize → generate `CLAUDE.md`.
 
-### Manual Tool Usage
+Or simply ask naturally:
 
-Each tool can be called individually:
+```
+Generate a CLAUDE.md for this project
+```
+
+### Available Tools
 
 #### `analyze-repo`
 Scans a project and returns structured facts — framework, dependencies, directory structure, detected stack.
 
-```
-Call analyze-repo with projectPath: /path/to/project
-```
-
-#### `fetch-docs`
-Takes the analysis output and fetches up-to-date documentation from Context7 for each detected technology. Also fetches cross-technology docs (e.g., Next.js + Prisma best practices).
-
 #### `generate-claude-md`
-Generates and writes `CLAUDE.md` to the project root based on the analysis and fetched documentation.
+Generates and writes `CLAUDE.md` to the project root. Accepts pre-synthesized documentation from Claude's orchestration of Context7 + WebSearch.
 
 #### `validate-claude-md`
 Checks if an existing `CLAUDE.md` is still in sync with the project. Detects drifts after adding dependencies or changing structure.
 
-#### `update-claude-md`
-Re-analyzes the project, re-fetches documentation, and regenerates `CLAUDE.md` while preserving your choices from the "Project Decisions" section.
+### Available Prompts
+
+- **`setup-project`** — Full workflow to generate a CLAUDE.md from scratch
+- **`update-project`** — Re-analyzes and regenerates while preserving your Project Decisions
+- **`validate-project`** — Checks if your CLAUDE.md is still up to date
+
+### Resources
+
+- **`leadcode://tech-queries`** — Mapping of detected technologies to Context7 library names and recommended queries. Used by Claude during the orchestration flow.
 
 ## What Gets Detected
 
@@ -116,7 +117,6 @@ Next.js (App/Pages Router), Nuxt, Remix, Astro, SvelteKit, SolidStart, Vite+Reac
 | Database | PostgreSQL, MySQL, SQLite, MongoDB, Supabase, PlanetScale, Redis |
 | API Style | tRPC, GraphQL |
 | Monorepo | Turborepo, Nx, Lerna |
-| Deployment | Vercel |
 | Runtime | Node, Bun, Deno |
 
 ### Code Patterns
@@ -124,34 +124,21 @@ Next.js (App/Pages Router), Nuxt, Remix, Astro, SvelteKit, SolidStart, Vite+Reac
 - `'use server'` file count
 - Path alias usage (`@/` or `~/`)
 - Barrel file patterns
-- Large files (>300 lines)
-- `console.log` count
 
 ## What Gets Generated
 
-The `CLAUDE.md` includes sections tailored to your stack:
+The `CLAUDE.md` is organized into:
 
-1. **Architecture Overview** — Framework, data layer, auth, project size
-2. **Stack** — All detected technologies with versions
-3. **Project Structure** — Directories, special files
-4. **Available Scripts** — `npm run` commands
-5. **Per-Technology Conventions** — Up-to-date best practices from official docs (via Context7)
-6. **Cross-Stack Rules** — Best practices for technology combinations (e.g., Next.js + Prisma, Zod + react-hook-form)
-7. **File & Naming Conventions** — kebab-case, PascalCase rules
-8. **Import Ordering** — Node builtins → external → internal → relative → types
-9. **Existing Code Patterns** — Patterns detected in your code to respect
-10. **Claude Code Instructions** — Dynamic instructions based on your stack
-
-### Cross-Technology Documentation
-
-LeadCode fetches specific documentation for technology pairs detected in your project:
-
-`next + prisma` · `next + drizzle` · `next + next-auth` · `next + clerk` · `next + supabase-auth` · `next + zod` · `next + stripe` · `next + react-query` · `next + next-intl` · `next + tailwind` · `next + shadcn` · `zod + react-hook-form` · `trpc + zod` — and more.
+1. **Architecture Overview** — Framework, data layer, auth, project size, structure, scripts, code patterns
+2. **Per-Technology Sections** — 3-5 concise, actionable rules per tech (from Context7 official docs + WebSearch)
+3. **Cross-Stack Conventions** — Unified rules for how all detected technologies work together
+4. **Conventions** — File naming and import ordering
+5. **Project Decisions** — User choices preserved across regenerations
 
 ## Requirements
 
 - **Node.js** >= 18
-- **Context7 MCP server** installed alongside LeadCode
+- **Context7 MCP server** installed alongside LeadCode (for documentation fetching)
 - The target project must have a `package.json`
 - Currently optimized for JavaScript/TypeScript projects
 
@@ -161,7 +148,6 @@ LeadCode fetches specific documentation for technology pairs detected in your pr
 - **Single package.json** — Monorepo support detects the tool but analyzes only the root
 - **No lint config reading** — Detects ESLint/Biome but doesn't parse their rules
 - **No CI/CD detection** — GitHub Actions, etc. are not analyzed
-- **Requires Context7** — Documentation quality depends on Context7's library coverage
 
 ## Contributing
 

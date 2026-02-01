@@ -208,16 +208,46 @@ export function generateClaudeMd(
     }
   }
 
-  // Conventions: naming + imports in one section
-  lines.push("## Conventions");
-  lines.push("");
-  lines.push(`- ${m.naming.files}`);
-  lines.push(`- ${m.naming.reactComponents}`);
-  lines.push(`- ${m.naming.hooks}`);
-  lines.push(`- ${m.naming.constants}`);
-  if (s.hasSrcDir) lines.push(`- ${m.naming.newFilesSrc}`);
-  lines.push(`- Import order: Node builtins → external packages → internal aliases (@/) → relative imports → type imports`);
-  lines.push("");
+  // Conventions: fully auto-detected from codebase
+  if (patterns) {
+    const convLines: string[] = [];
+
+    if (patterns.fileNamingStyle !== "mixed") {
+      convLines.push(`- File naming: ${patterns.fileNamingStyle}`);
+    }
+    if (patterns.hasReactFiles) {
+      convLines.push("- React components: PascalCase filename = component name");
+      convLines.push("- Hooks: camelCase prefixed with `use`");
+    }
+    if (patterns.usesPathAlias) {
+      convLines.push("- Imports use @/ or ~/ path aliases");
+    }
+    if (patterns.hasBarrelFiles) {
+      convLines.push("- Barrel files: index.ts re-exports — follow this pattern");
+    }
+    if (patterns.importOrder) {
+      convLines.push(`- Import order: ${patterns.importOrder.join(" → ")}`);
+    }
+    if (patterns.indentation) {
+      const desc = patterns.indentation.style === "tabs"
+        ? "Tabs"
+        : `${patterns.indentation.size} spaces`;
+      convLines.push(`- Indentation: ${desc}`);
+    }
+    if (patterns.quoteStyle && patterns.quoteStyle !== "mixed") {
+      convLines.push(`- Quotes: ${patterns.quoteStyle}`);
+    }
+    if (s.hasSrcDir) {
+      convLines.push("- New files go in `src/`");
+    }
+
+    if (convLines.length > 0) {
+      lines.push("## Conventions");
+      lines.push("");
+      lines.push(...convLines);
+      lines.push("");
+    }
+  }
 
   // User choices
   const choiceEntries = Object.entries(choices);
