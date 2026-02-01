@@ -2,21 +2,19 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod";
 import { registerAnalyzeRepo } from "./tools/analyze-repo.js";
-import { registerDetectGaps } from "./tools/detect-gaps.js";
-import { registerSuggest } from "./tools/suggest.js";
+import { registerFetchDocs } from "./tools/fetch-docs.js";
 import { registerGenerateClaudeMd } from "./tools/generate-claude-md.js";
 import { registerValidateClaudeMd } from "./tools/validate-claude-md.js";
 import { registerUpdateClaudeMd } from "./tools/update-claude-md.js";
 
 const server = new McpServer({
   name: "leadcode",
-  version: "0.2.0",
+  version: "1.0.0",
 });
 
 // Register tools
 registerAnalyzeRepo(server);
-registerDetectGaps(server);
-registerSuggest(server);
+registerFetchDocs(server);
 registerGenerateClaudeMd(server);
 registerValidateClaudeMd(server);
 registerUpdateClaudeMd(server);
@@ -24,7 +22,7 @@ registerUpdateClaudeMd(server);
 // Register prompts
 server.prompt(
   "setup-project",
-  "Full LeadCode workflow: analyze → detect gaps → suggest → generate CLAUDE.md. Supports language parameter for French or English output.",
+  "Full LeadCode workflow: analyze repo → fetch documentation → generate CLAUDE.md with up-to-date conventions.",
   {
     projectPath: z.string().describe("Absolute path to the project root"),
     language: z.string().optional().describe("Output language: 'fr' for French, 'en' for English (default: en)"),
@@ -35,26 +33,22 @@ server.prompt(
       ? [
           `Configure LeadCode pour le projet à ${projectPath}. Suis ces étapes :`,
           "",
-          `1. Lance analyze-repo avec projectPath="${projectPath}" pour scanner le projet.`,
-          "2. Lance detect-gaps avec l'analyse pour identifier les manques structurels.",
-          "3. Lance suggest-conventions avec l'analyse et les gaps pour obtenir des propositions.",
-          "4. Présente un résumé clair : ce qui est détecté, ce qui manque, et les options.",
-          "5. Demande-moi mes préférences pour chaque point (simple / clean / scalable).",
-          "6. Une fois mes choix faits, lance generate-claude-md avec mes choix pour créer le CLAUDE.md.",
+          `1. Lance analyze-repo avec projectPath="${projectPath}" pour scanner le projet et détecter le stack.`,
+          "2. Lance fetch-docs avec l'analyse pour récupérer la documentation à jour de chaque technologie détectée via Context7.",
+          "3. Présente un résumé clair : stack détecté, documentation récupérée, techs sans documentation.",
+          "4. Lance generate-claude-md avec l'analyse et la documentation pour créer le CLAUDE.md.",
           "",
           "Explique chaque étape simplement. Réponds en français.",
         ]
       : [
           `Please set up LeadCode for the project at ${projectPath}. Follow these steps:`,
           "",
-          `1. Call analyze-repo with projectPath="${projectPath}" to scan the project.`,
-          "2. Call detect-gaps with the analysis to identify structural gaps.",
-          "3. Call suggest-conventions with the analysis and gaps to get improvement options.",
-          "4. Present the analysis, gaps, and suggestions to me in a clear summary.",
-          "5. Ask me which options I prefer for each gap (simple / clean / scalable).",
-          "6. Once I've chosen, call generate-claude-md with my choices to create the CLAUDE.md file.",
+          `1. Call analyze-repo with projectPath="${projectPath}" to scan the project and detect the stack.`,
+          "2. Call fetch-docs with the analysis to fetch up-to-date documentation for each detected technology via Context7.",
+          "3. Present a summary: detected stack, fetched documentation, any techs without docs.",
+          "4. Call generate-claude-md with the analysis and docs to create the CLAUDE.md file.",
           "",
-          "Be thorough and explain each gap and suggestion clearly.",
+          "Be thorough and explain the results clearly.",
         ];
 
     return {

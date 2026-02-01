@@ -1,5 +1,6 @@
-import type { RepoAnalysis, Convention, CrossRef } from "../types.js";
+import type { RepoAnalysis } from "../types.js";
 import type { CodePatterns } from "../analyzers/patterns.js";
+import type { FetchedDocs } from "../tools/fetch-docs.js";
 import type { Locale } from "../i18n/types.js";
 import { getMessages, interpolate } from "../i18n/index.js";
 
@@ -64,44 +65,76 @@ function buildDynamicInstructions(analysis: RepoAnalysis, locale: Locale): strin
     lines.push(`- ${m.serverActions}`);
   }
 
-  if (d.orm === "prisma") {
-    lines.push(`- ${m.prismaAfterChange}`);
-  } else if (d.orm === "drizzle") {
-    lines.push(`- ${m.drizzleAfterChange}`);
-  }
+  if (d.orm === "prisma") lines.push(`- ${m.prismaAfterChange}`);
+  else if (d.orm === "drizzle") lines.push(`- ${m.drizzleAfterChange}`);
 
-  if (d.validation === "zod") {
-    lines.push(`- ${m.zodValidate}`);
-  }
+  if (d.validation === "zod") lines.push(`- ${m.zodValidate}`);
+  if (d.css === "tailwind") lines.push(`- ${m.tailwindClasses}`);
+  if (d.uiComponents === "shadcn") lines.push(`- ${m.shadcnComponents}`);
 
-  if (d.css === "tailwind") {
-    lines.push(`- ${m.tailwindClasses}`);
-  }
-
-  if (d.uiComponents === "shadcn") {
-    lines.push(`- ${m.shadcnComponents}`);
-  }
-
-  if (d.testing) {
-    lines.push(`- ${interpolate(m.runTests, { testing: d.testing })}`);
-  }
-
-  if (d.linter) {
-    lines.push(`- ${interpolate(m.runLinter, { linter: d.linter })}`);
-  }
-
-  if (d.i18n) {
-    lines.push(`- ${m.i18nStrings}`);
-  }
+  if (d.testing) lines.push(`- ${interpolate(m.runTests, { testing: d.testing })}`);
+  if (d.linter) lines.push(`- ${interpolate(m.runLinter, { linter: d.linter })}`);
+  if (d.i18n) lines.push(`- ${m.i18nStrings}`);
 
   return lines;
 }
 
+/** Format a tech name for display as section header */
+function techDisplayName(tech: string): string {
+  const names: Record<string, string> = {
+    next: "Next.js",
+    react: "React",
+    "vite-react": "Vite + React",
+    nuxt: "Nuxt",
+    remix: "Remix",
+    astro: "Astro",
+    sveltekit: "SvelteKit",
+    express: "Express",
+    fastify: "Fastify",
+    hono: "Hono",
+    prisma: "Prisma",
+    drizzle: "Drizzle",
+    typeorm: "TypeORM",
+    mongoose: "Mongoose",
+    kysely: "Kysely",
+    "next-auth": "NextAuth.js",
+    clerk: "Clerk",
+    "better-auth": "Better Auth",
+    auth0: "Auth0",
+    "supabase-auth": "Supabase Auth",
+    zod: "Zod",
+    valibot: "Valibot",
+    tailwind: "Tailwind CSS",
+    shadcn: "shadcn/ui",
+    chakra: "Chakra UI",
+    mui: "Material UI",
+    mantine: "Mantine",
+    vitest: "Vitest",
+    jest: "Jest",
+    playwright: "Playwright",
+    cypress: "Cypress",
+    zustand: "Zustand",
+    redux: "Redux Toolkit",
+    jotai: "Jotai",
+    "react-query": "TanStack Query",
+    swr: "SWR",
+    "react-hook-form": "React Hook Form",
+    trpc: "tRPC",
+    stripe: "Stripe",
+    resend: "Resend",
+    "next-intl": "next-intl",
+    i18next: "i18next",
+    "socket.io": "Socket.IO",
+    inngest: "Inngest",
+    sanity: "Sanity",
+    contentful: "Contentful",
+  };
+  return names[tech] ?? tech;
+}
+
 export function generateClaudeMd(
   analysis: RepoAnalysis,
-  conventions: Convention[],
-  interdictions: string[],
-  crossRefs: CrossRef[],
+  docs: FetchedDocs,
   choices: Record<string, string>,
   patterns?: CodePatterns,
   locale: Locale = "en"
@@ -129,12 +162,8 @@ export function generateClaudeMd(
   lines.push(`## ${m.sections.stack}`);
   lines.push("");
   if (analysis.framework) {
-    const variant = analysis.framework.variant
-      ? ` (${analysis.framework.variant})`
-      : "";
-    lines.push(
-      `- **${m.stackLabels.framework}**: ${analysis.framework.name} ${analysis.framework.version}${variant}`
-    );
+    const variant = analysis.framework.variant ? ` (${analysis.framework.variant})` : "";
+    lines.push(`- **${m.stackLabels.framework}**: ${analysis.framework.name} ${analysis.framework.version}${variant}`);
   }
   const d = analysis.detected;
   if (d.orm) lines.push(`- **${m.stackLabels.orm}**: ${d.orm}`);
@@ -145,8 +174,8 @@ export function generateClaudeMd(
   if (d.uiComponents) lines.push(`- **${m.stackLabels.uiComponents}**: ${d.uiComponents}`);
   if (d.testing) lines.push(`- **${m.stackLabels.testing}**: ${d.testing}`);
   if (d.stateManagement) lines.push(`- **${m.stackLabels.stateManagement}**: ${d.stateManagement}`);
-  if (d.dataFetching) lines.push(`- **Data Fetching**: ${d.dataFetching}`);
-  if (d.formLibrary) lines.push(`- **Forms**: ${d.formLibrary}`);
+  if (d.dataFetching) lines.push(`- **${m.stackLabels.dataFetching}**: ${d.dataFetching}`);
+  if (d.formLibrary) lines.push(`- **${m.stackLabels.formLibrary}**: ${d.formLibrary}`);
   if (d.apiStyle) lines.push(`- **${m.stackLabels.apiStyle}**: ${d.apiStyle}`);
   if (d.i18n) lines.push(`- **${m.stackLabels.i18n}**: ${d.i18n}`);
   if (d.payments) lines.push(`- **${m.stackLabels.payments}**: ${d.payments}`);
@@ -194,6 +223,31 @@ export function generateClaudeMd(
     lines.push("");
   }
 
+  // Per-tech documentation (from Context7)
+  const techEntries = Object.entries(docs.techDocs);
+  if (techEntries.length > 0) {
+    for (const [tech, docContent] of techEntries) {
+      if (!docContent.trim()) continue;
+      lines.push(`## ${techDisplayName(tech)} Conventions`);
+      lines.push("");
+      lines.push(docContent.trim());
+      lines.push("");
+    }
+  }
+
+  // Cross-stack documentation (from Context7)
+  const crossEntries = Object.entries(docs.crossDocs);
+  if (crossEntries.length > 0) {
+    for (const [key, docContent] of crossEntries) {
+      if (!docContent.trim()) continue;
+      const [tech1, tech2] = key.split("+");
+      lines.push(`## Cross-Stack: ${techDisplayName(tech1)} + ${techDisplayName(tech2)}`);
+      lines.push("");
+      lines.push(docContent.trim());
+      lines.push("");
+    }
+  }
+
   // File naming conventions
   lines.push(`## ${m.sections.fileNaming}`);
   lines.push("");
@@ -201,9 +255,7 @@ export function generateClaudeMd(
   lines.push(`- ${m.naming.reactComponents}`);
   lines.push(`- ${m.naming.hooks}`);
   lines.push(`- ${m.naming.constants}`);
-  if (s.hasSrcDir) {
-    lines.push(`- ${m.naming.newFilesSrc}`);
-  }
+  if (s.hasSrcDir) lines.push(`- ${m.naming.newFilesSrc}`);
   lines.push("");
 
   // Import ordering
@@ -215,48 +267,6 @@ export function generateClaudeMd(
   }
   lines.push("```");
   lines.push("");
-
-  // Conventions
-  if (conventions.length > 0) {
-    lines.push(`## ${m.sections.conventions}`);
-    lines.push("");
-    for (const conv of conventions) {
-      lines.push(`### ${conv.description}`);
-      lines.push(`<!-- id:${conv.id} -->`);
-      lines.push(conv.rule);
-      lines.push("");
-    }
-  }
-
-  // Cross-stack rules
-  if (crossRefs.length > 0) {
-    lines.push(`## ${m.sections.crossStackRules}`);
-    lines.push("");
-    for (const cr of crossRefs) {
-      lines.push(`### ${cr.techs.join(" + ")}`);
-      lines.push("");
-      for (const conv of cr.conventions) {
-        lines.push(`- **${conv.description}**: ${conv.rule}`);
-      }
-      if (cr.interdictions.length > 0) {
-        lines.push("");
-        for (const inter of cr.interdictions) {
-          lines.push(`- ${inter}`);
-        }
-      }
-      lines.push("");
-    }
-  }
-
-  // Interdictions
-  if (interdictions.length > 0) {
-    lines.push(`## ${m.sections.interdictions}`);
-    lines.push("");
-    for (const inter of interdictions) {
-      lines.push(`- ${inter}`);
-    }
-    lines.push("");
-  }
 
   // User choices
   const choiceEntries = Object.entries(choices);
@@ -282,12 +292,8 @@ export function generateClaudeMd(
     if (patterns.useServerCount > 0) {
       patternLines.push(`- ${interpolate(m.patterns.serverActions, { count: patterns.useServerCount })}`);
     }
-    if (patterns.usesPathAlias) {
-      patternLines.push(`- ${m.patterns.pathAliases}`);
-    }
-    if (patterns.hasBarrelFiles) {
-      patternLines.push(`- ${m.patterns.barrelFiles}`);
-    }
+    if (patterns.usesPathAlias) patternLines.push(`- ${m.patterns.pathAliases}`);
+    if (patterns.hasBarrelFiles) patternLines.push(`- ${m.patterns.barrelFiles}`);
     if (patterns.largeFiles.length > 0) {
       patternLines.push(`- ${interpolate(m.patterns.largeFiles, { count: patterns.largeFiles.length })}`);
     }

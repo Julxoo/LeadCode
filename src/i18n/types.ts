@@ -1,83 +1,8 @@
 export type Locale = "en" | "fr";
 
-export interface SuggestionMessages {
-  testing: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    scalable: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  inputValidation: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  errorHandling: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  schemaOrg: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  componentStructure: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  authMiddleware: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  loadingStates: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  metadata: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  prismaClient: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  authSession: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  envValidation: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  typesDir: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  storeOrg: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  drizzleSchema: {
-    topic: string;
-    simple: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-    clean: { description: string; pros: string[]; cons: string[]; claudeImpact: string };
-  };
-  genericFix: string;
-  genericPros: string[];
-  genericCons: string[];
-  genericClaudeImpact: string;
-}
-
 export interface TemplateMessages {
   header: {
-    title: string; // "{name} — Project Rules"
+    title: string;
     meta1: string;
     meta2: string;
   };
@@ -88,9 +13,6 @@ export interface TemplateMessages {
     availableScripts: string;
     fileNaming: string;
     importOrdering: string;
-    conventions: string;
-    crossStackRules: string;
-    interdictions: string;
     projectDecisions: string;
     existingPatterns: string;
     claudeInstructions: string;
@@ -199,34 +121,6 @@ export interface TemplateMessages {
   };
 }
 
-export interface ValidationMessages {
-  noClaudeMd: string;
-  frameworkVersionOutdated: string;
-  techMissing: string;
-  conventionMissing: string;
-  crossStackMissing: string;
-  gapStillExists: string;
-  inSync: string;
-  driftsFound: string;
-}
-
-export interface ToolMessages {
-  generateSuccess: string;
-  updateSuccess: string;
-  dirNotFound: string;
-}
-
-export interface PromptMessages {
-  setupTitle: string;
-  setupSteps: string[];
-  validateTitle: string;
-  validateSteps: string[];
-}
-
 export interface Messages {
   templates: TemplateMessages;
-  suggestions: SuggestionMessages;
-  validation: ValidationMessages;
-  tools: ToolMessages;
-  prompts: PromptMessages;
 }

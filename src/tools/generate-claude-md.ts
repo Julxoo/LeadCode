@@ -2,14 +2,10 @@ import { writeFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod";
-import {
-  getConventions,
-  getInterdictions,
-  getActiveCrossRefs,
-} from "../rules/index.js";
 import { generateClaudeMd } from "../templates/claude-md.js";
 import { analyzePatterns } from "../analyzers/patterns.js";
 import type { RepoAnalysis } from "../types.js";
+import type { FetchedDocs } from "./fetch-docs.js";
 
 export function registerGenerateClaudeMd(server: McpServer): void {
   server.registerTool(
@@ -17,11 +13,14 @@ export function registerGenerateClaudeMd(server: McpServer): void {
     {
       title: "Generate CLAUDE.md",
       description:
-        "Generates a structured CLAUDE.md file from the repo analysis and user choices. Writes it directly to the project root. This file becomes the source of truth for Claude Code.",
+        "Generates a structured CLAUDE.md file from the repo analysis and fetched documentation. Writes it directly to the project root. This file becomes the source of truth for Claude Code.",
       inputSchema: {
         analysis: z
           .string()
-          .describe("JSON string of RepoAnalysis"),
+          .describe("JSON string of RepoAnalysis (output of analyze-repo)"),
+        docs: z
+          .string()
+          .describe("JSON string of FetchedDocs (output of fetch-docs)"),
         choices: z
           .string()
           .optional()
@@ -30,9 +29,10 @@ export function registerGenerateClaudeMd(server: McpServer): void {
           ),
       },
     },
-    async ({ analysis: analysisStr, choices: choicesStr }) => {
+    async ({ analysis: analysisStr, docs: docsStr, choices: choicesStr }) => {
       try {
         const analysis: RepoAnalysis = JSON.parse(analysisStr);
+        const docs: FetchedDocs = JSON.parse(docsStr);
         const choices: Record<string, string> = choicesStr
           ? JSON.parse(choicesStr)
           : {};
@@ -47,16 +47,11 @@ export function registerGenerateClaudeMd(server: McpServer): void {
           };
         }
 
-        const conventions = getConventions(analysis);
-        const interdictions = getInterdictions(analysis);
-        const crossRefs = getActiveCrossRefs(analysis);
         const patterns = await analyzePatterns(analysis.projectPath);
 
         const content = generateClaudeMd(
           analysis,
-          conventions,
-          interdictions,
-          crossRefs,
+          docs,
           choices,
           patterns
         );
@@ -72,11 +67,11 @@ export function registerGenerateClaudeMd(server: McpServer): void {
                 {
                   path: outputPath,
                   message: "CLAUDE.md generated successfully",
-                  sections: {
-                    conventions: conventions.length,
-                    interdictions: interdictions.length,
-                    crossStackRules: crossRefs.length,
+                  stats: {
+                    techDocs: Object.keys(docs.techDocs).length,
+                    crossDocs: Object.keys(docs.crossDocs).length,
                     choices: Object.keys(choices).length,
+                    failedTechs: docs.metadata.failedTechs,
                   },
                 },
                 null,

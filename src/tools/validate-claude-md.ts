@@ -5,16 +5,9 @@ import * as z from "zod";
 import { analyzeDependencies } from "../analyzers/dependencies.js";
 import { analyzeStructure } from "../analyzers/structure.js";
 import { detectFramework, detectStack } from "../analyzers/detection.js";
-import {
-  getConventions,
-  getInterdictions,
-  getActiveCrossRefs,
-  detectGaps,
-} from "../rules/index.js";
-import type { RepoAnalysis } from "../types.js";
 
 interface Drift {
-  type: "missing" | "outdated" | "extra";
+  type: "missing" | "outdated";
   section: string;
   message: string;
 }
@@ -25,7 +18,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
     {
       title: "Validate CLAUDE.md",
       description:
-        "Checks if an existing CLAUDE.md is still in sync with the actual project. Detects drifts: missing conventions, outdated stack info, new gaps not covered.",
+        "Checks if an existing CLAUDE.md is still in sync with the actual project. Detects drifts: missing technologies, outdated versions.",
       inputSchema: {
         projectPath: z
           .string()
@@ -53,23 +46,11 @@ export function registerValidateClaudeMd(server: McpServer): void {
         const detected = detectStack(pkg.dependencies, pkg.devDependencies);
         detected.runtime = structure.detectedRuntime;
 
-        const analysis: RepoAnalysis = {
-          projectPath,
-          projectName: pkg.name,
-          framework,
-          dependencies: pkg.dependencies,
-          devDependencies: pkg.devDependencies,
-          scripts: pkg.scripts,
-          structure,
-          detected,
-        };
-
         const drifts: Drift[] = [];
 
         // Check framework version
         if (framework) {
-          const versionInDoc = claudeMd.includes(framework.version);
-          if (!versionInDoc) {
+          if (!claudeMd.includes(framework.version)) {
             drifts.push({
               type: "outdated",
               section: "Stack",
@@ -88,7 +69,14 @@ export function registerValidateClaudeMd(server: McpServer): void {
           ["i18n", detected.i18n],
           ["Payments", detected.payments],
           ["State Management", detected.stateManagement],
+          ["Data Fetching", detected.dataFetching],
+          ["Form Library", detected.formLibrary],
           ["UI Components", detected.uiComponents],
+          ["Database", detected.database],
+          ["Email", detected.email],
+          ["Realtime", detected.realtime],
+          ["CMS", detected.cms],
+          ["Jobs", detected.jobs],
         ];
 
         for (const [label, value] of techFields) {
@@ -99,42 +87,6 @@ export function registerValidateClaudeMd(server: McpServer): void {
               message: `${label}: ${value} is in the project but not mentioned in CLAUDE.md.`,
             });
           }
-        }
-
-        // Check for conventions not present
-        const conventions = getConventions(analysis);
-        for (const conv of conventions) {
-          if (!claudeMd.includes(conv.id) && !claudeMd.includes(conv.description)) {
-            drifts.push({
-              type: "missing",
-              section: "Conventions",
-              message: `Convention "${conv.description}" is applicable but not in CLAUDE.md.`,
-            });
-          }
-        }
-
-        // Check for cross-refs
-        const crossRefs = getActiveCrossRefs(analysis);
-        for (const cr of crossRefs) {
-          const combo = cr.techs.join(" + ");
-          if (!claudeMd.includes(combo)) {
-            drifts.push({
-              type: "missing",
-              section: "Cross-Stack Rules",
-              message: `Cross-stack rule for ${combo} is applicable but not in CLAUDE.md.`,
-            });
-          }
-        }
-
-        // Check for gaps
-        const gaps = detectGaps(analysis);
-        const highGaps = gaps.filter((g) => g.severity === "high");
-        for (const gap of highGaps) {
-          drifts.push({
-            type: "missing",
-            section: "Gaps",
-            message: `High-severity gap still exists: ${gap.message}`,
-          });
         }
 
         return {
@@ -148,7 +100,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
                   total: drifts.length,
                   summary: drifts.length === 0
                     ? "CLAUDE.md is in sync with the project."
-                    : `Found ${drifts.length} drift(s). Consider running generate-claude-md to update.`,
+                    : `Found ${drifts.length} drift(s). Consider running setup-project again to regenerate.`,
                 },
                 null,
                 2

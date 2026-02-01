@@ -6,13 +6,10 @@ import { analyzeDependencies } from "../analyzers/dependencies.js";
 import { analyzeStructure } from "../analyzers/structure.js";
 import { detectFramework, detectStack } from "../analyzers/detection.js";
 import { analyzePatterns } from "../analyzers/patterns.js";
-import {
-  getConventions,
-  getInterdictions,
-  getActiveCrossRefs,
-} from "../rules/index.js";
+import { resolveAndFetch, TECH_QUERIES } from "../context7/index.js";
 import { generateClaudeMd } from "../templates/claude-md.js";
 import type { RepoAnalysis } from "../types.js";
+import type { FetchedDocs } from "./fetch-docs.js";
 
 /**
  * Extract user-added sections from an existing CLAUDE.md.
@@ -35,13 +32,56 @@ function extractUserChoices(existingContent: string): Record<string, string> {
   return choices;
 }
 
+/** Collect techs and fetch docs (same logic as fetch-docs tool but inline) */
+async function fetchDocsForAnalysis(analysis: RepoAnalysis): Promise<FetchedDocs> {
+  const techs: string[] = [];
+  if (analysis.framework) techs.push(analysis.framework.name);
+  const d = analysis.detected;
+  for (const value of Object.values(d)) {
+    if (typeof value === "string") techs.push(value);
+  }
+  const uniqueTechs = [...new Set(techs)];
+
+  const techDocs: Record<string, string> = {};
+  const crossDocs: Record<string, string> = {};
+  const failedTechs: string[] = [];
+  let snippetCount = 0;
+
+  for (const tech of uniqueTechs) {
+    const mapping = TECH_QUERIES[tech];
+    if (!mapping) { failedTechs.push(tech); continue; }
+    const docs = await resolveAndFetch(mapping.libraryName, mapping.queries.join(". "));
+    if (docs) { techDocs[tech] = docs; snippetCount++; }
+    else { failedTechs.push(tech); }
+  }
+
+  for (const tech of uniqueTechs) {
+    const mapping = TECH_QUERIES[tech];
+    if (!mapping?.crossQueries) continue;
+    for (const [other, query] of Object.entries(mapping.crossQueries)) {
+      if (!uniqueTechs.includes(other)) continue;
+      const key = `${tech}+${other}`;
+      const rev = `${other}+${tech}`;
+      if (key in crossDocs || rev in crossDocs) continue;
+      const docs = await resolveAndFetch(mapping.libraryName, query);
+      if (docs) { crossDocs[key] = docs; snippetCount++; }
+    }
+  }
+
+  return {
+    techDocs,
+    crossDocs,
+    metadata: { techCount: Object.keys(techDocs).length, snippetCount, failedTechs },
+  };
+}
+
 export function registerUpdateClaudeMd(server: McpServer): void {
   server.registerTool(
     "update-claude-md",
     {
       title: "Update CLAUDE.md",
       description:
-        "Re-analyzes the project and regenerates CLAUDE.md while preserving user choices from the Project Decisions section. Use this after adding dependencies, changing structure, or updating the stack.",
+        "Re-analyzes the project, fetches fresh documentation from Context7, and regenerates CLAUDE.md while preserving user choices from the Project Decisions section.",
       inputSchema: {
         projectPath: z
           .string()
@@ -50,7 +90,6 @@ export function registerUpdateClaudeMd(server: McpServer): void {
     },
     async ({ projectPath }) => {
       try {
-        // Verify project path
         try {
           await stat(projectPath);
         } catch {
@@ -90,15 +129,12 @@ export function registerUpdateClaudeMd(server: McpServer): void {
           detected,
         };
 
-        const conventions = getConventions(analysis);
-        const interdictions = getInterdictions(analysis);
-        const crossRefs = getActiveCrossRefs(analysis);
+        // Fetch fresh docs
+        const docs = await fetchDocsForAnalysis(analysis);
 
         const content = generateClaudeMd(
           analysis,
-          conventions,
-          interdictions,
-          crossRefs,
+          docs,
           previousChoices,
           patterns
         );
@@ -114,10 +150,10 @@ export function registerUpdateClaudeMd(server: McpServer): void {
                   path: claudeMdPath,
                   message: "CLAUDE.md updated successfully",
                   preservedChoices: Object.keys(previousChoices).length,
-                  sections: {
-                    conventions: conventions.length,
-                    interdictions: interdictions.length,
-                    crossStackRules: crossRefs.length,
+                  stats: {
+                    techDocs: Object.keys(docs.techDocs).length,
+                    crossDocs: Object.keys(docs.crossDocs).length,
+                    failedTechs: docs.metadata.failedTechs,
                   },
                 },
                 null,

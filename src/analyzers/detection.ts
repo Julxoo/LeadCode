@@ -94,9 +94,11 @@ export function detectStack(deps: Deps, devDeps: Deps): DetectedStack {
   if ("prisma" in all || "@prisma/client" in all) orm = "prisma";
   else if ("drizzle-orm" in all) orm = "drizzle";
   else if ("typeorm" in all) orm = "typeorm";
+  else if ("@mikro-orm/core" in all) orm = "mikro-orm";
   else if ("kysely" in all) orm = "kysely";
   else if ("mongoose" in all) orm = "mongoose";
   else if ("sequelize" in all) orm = "sequelize";
+  else if ("objection" in all) orm = "objection";
   else if ("@neondatabase/serverless" in all) orm = "neon";
   else if ("libsql" in all || "@libsql/client" in all) orm = "libsql";
   else if ("better-sqlite3" in all) orm = "better-sqlite3";
@@ -112,6 +114,9 @@ export function detectStack(deps: Deps, devDeps: Deps): DetectedStack {
   else if ("@kinde-oss/kinde-auth-nextjs" in all) auth = "kinde";
   else if ("@auth0/nextjs-auth0" in all || "@auth0/auth0-react" in all) auth = "auth0";
   else if ("firebase-admin" in all) auth = "firebase";
+  else if ("@workos-inc/node" in all) auth = "workos";
+  else if ("@descope/nextjs-sdk" in all || "@descope/react-sdk" in all) auth = "descope";
+  else if ("@stytch/nextjs" in all || "@stytch/react" in all) auth = "stytch";
 
   // Validation
   let validation: string | null = null;
@@ -131,6 +136,8 @@ export function detectStack(deps: Deps, devDeps: Deps): DetectedStack {
   else if ("@pandacss/dev" in all) css = "panda";
   else if ("@vanilla-extract/css" in all) css = "vanilla-extract";
   else if ("unocss" in all) css = "unocss";
+  else if ("@mantine/core" in all) css = "mantine";
+  else if ("antd" in all) css = "ant-design";
   else if ("sass" in all) css = "sass";
 
   // Testing
@@ -216,6 +223,9 @@ export function detectStack(deps: Deps, devDeps: Deps): DetectedStack {
   else if ("better-sqlite3" in all || "libsql" in all || "@libsql/client" in all) database = "sqlite";
   else if ("mongodb" in all || "mongoose" in all) database = "mongodb";
   else if ("@supabase/supabase-js" in all) database = "supabase";
+  else if ("@planetscale/database" in all) database = "planetscale";
+  else if ("ioredis" in all || "@upstash/redis" in all) database = "redis";
+  else if ("@vercel/postgres" in all) database = "vercel-postgres";
 
   // Email
   let email: string | null = null;
@@ -271,6 +281,11 @@ export function detectStack(deps: Deps, devDeps: Deps): DetectedStack {
     }
   } else if ("@headlessui/react" in all) uiComponents = "headless-ui";
   else if ("@ark-ui/react" in all) uiComponents = "ark-ui";
+  else if ("@nextui-org/react" in all) uiComponents = "nextui";
+  else if ("@tremor/react" in all) uiComponents = "tremor";
+  else if ("primereact" in all) uiComponents = "primereact";
+  else if ("react-bootstrap" in all) uiComponents = "react-bootstrap";
+  else if ("flowbite-react" in all) uiComponents = "flowbite";
 
   return {
     orm,

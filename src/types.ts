@@ -50,15 +50,14 @@ export interface DetectedStack {
   css: string | null;
   testing: string | null;
   stateManagement: string | null;
-  dataFetching: string | null; // "react-query" | "swr"
-  formLibrary: string | null; // "react-hook-form" | "formik"
-  apiStyle: string | null; // "rest" | "trpc" | "graphql"
+  dataFetching: string | null;
+  formLibrary: string | null;
+  apiStyle: string | null;
   bundler: string | null;
   linter: string | null;
   formatter: string | null;
-  // New categories
   i18n: string | null;
-  runtime: string | null; // "node" | "bun" | "deno"
+  runtime: string | null;
   monorepo: string | null;
   deployment: string | null;
   database: string | null;
@@ -68,7 +67,7 @@ export interface DetectedStack {
   realtime: string | null;
   cms: string | null;
   jobs: string | null;
-  uiComponents: string | null; // "shadcn" | "radix" | "headless-ui"
+  uiComponents: string | null;
 }
 
 export interface RepoAnalysis {
@@ -80,54 +79,4 @@ export interface RepoAnalysis {
   scripts: Record<string, string>;
   structure: StructureInfo;
   detected: DetectedStack;
-}
-
-export interface Gap {
-  category: string;
-  severity: "high" | "medium" | "low";
-  message: string;
-  details?: string;
-}
-
-export interface SuggestionOption {
-  level: "simple" | "clean" | "scalable";
-  description: string;
-  pros: string[];
-  cons: string[];
-  claudeImpact: string;
-}
-
-export interface Suggestion {
-  topic: string;
-  options: SuggestionOption[];
-}
-
-export interface GapCheck {
-  category: string;
-  severity: "high" | "medium" | "low";
-  check: (analysis: RepoAnalysis) => boolean; // returns true if gap exists
-  message: string;
-  details?: string;
-}
-
-export interface Convention {
-  id: string;
-  description: string;
-  rule: string; // concise rule for CLAUDE.md
-}
-
-export interface CrossRef {
-  techs: string[]; // e.g. ["next", "prisma"]
-  conventions: Convention[];
-  interdictions: string[];
-}
-
-export interface Rule {
-  id: string;
-  name: string;
-  applies: (analysis: RepoAnalysis) => boolean;
-  gaps: GapCheck[];
-  conventions: Convention[];
-  interdictions: string[];
-  crossRefs: CrossRef[];
 }
