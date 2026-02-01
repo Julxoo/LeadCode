@@ -4,8 +4,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod";
 import { generateClaudeMd } from "../templates/claude-md.js";
 import { analyzePatterns } from "../analyzers/patterns.js";
+import { fetchAllDocs } from "../context7/index.js";
 import type { RepoAnalysis } from "../types.js";
-import type { FetchedDocs } from "./fetch-docs.js";
 
 export function registerGenerateClaudeMd(server: McpServer): void {
   server.registerTool(
@@ -13,14 +13,11 @@ export function registerGenerateClaudeMd(server: McpServer): void {
     {
       title: "Generate CLAUDE.md",
       description:
-        "Generates a structured CLAUDE.md file from the repo analysis and fetched documentation. Writes it directly to the project root. This file becomes the source of truth for Claude Code.",
+        "Fetches up-to-date documentation from Context7 for each detected technology, then generates a structured CLAUDE.md file. Writes it directly to the project root.",
       inputSchema: {
         analysis: z
           .string()
           .describe("JSON string of RepoAnalysis (output of analyze-repo)"),
-        docs: z
-          .string()
-          .describe("JSON string of FetchedDocs (output of fetch-docs)"),
         choices: z
           .string()
           .optional()
@@ -29,10 +26,9 @@ export function registerGenerateClaudeMd(server: McpServer): void {
           ),
       },
     },
-    async ({ analysis: analysisStr, docs: docsStr, choices: choicesStr }) => {
+    async ({ analysis: analysisStr, choices: choicesStr }) => {
       try {
         const analysis: RepoAnalysis = JSON.parse(analysisStr);
-        const docs: FetchedDocs = JSON.parse(docsStr);
         const choices: Record<string, string> = choicesStr
           ? JSON.parse(choicesStr)
           : {};
@@ -47,6 +43,8 @@ export function registerGenerateClaudeMd(server: McpServer): void {
           };
         }
 
+        // Fetch docs from Context7 internally
+        const docs = await fetchAllDocs(analysis);
         const patterns = await analyzePatterns(analysis.projectPath);
 
         const content = generateClaudeMd(

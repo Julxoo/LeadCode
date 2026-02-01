@@ -22,7 +22,7 @@ registerUpdateClaudeMd(server);
 // Register prompts
 server.prompt(
   "setup-project",
-  "Full LeadCode workflow: analyze repo → fetch documentation → generate CLAUDE.md with up-to-date conventions.",
+  "Full LeadCode workflow: analyze repo → generate CLAUDE.md with up-to-date conventions from Context7.",
   {
     projectPath: z.string().describe("Absolute path to the project root"),
     language: z.string().optional().describe("Output language: 'fr' for French, 'en' for English (default: en)"),
@@ -34,9 +34,8 @@ server.prompt(
           `Configure LeadCode pour le projet à ${projectPath}. Suis ces étapes :`,
           "",
           `1. Lance analyze-repo avec projectPath="${projectPath}" pour scanner le projet et détecter le stack.`,
-          "2. Lance fetch-docs avec l'analyse pour récupérer la documentation à jour de chaque technologie détectée via Context7.",
-          "3. Présente un résumé clair : stack détecté, documentation récupérée, techs sans documentation.",
-          "4. Lance generate-claude-md avec l'analyse et la documentation pour créer le CLAUDE.md.",
+          "2. Présente un résumé clair du stack détecté.",
+          "3. Lance generate-claude-md avec l'analyse — il récupérera automatiquement la documentation à jour via Context7 et générera le CLAUDE.md.",
           "",
           "Explique chaque étape simplement. Réponds en français.",
         ]
@@ -44,9 +43,8 @@ server.prompt(
           `Please set up LeadCode for the project at ${projectPath}. Follow these steps:`,
           "",
           `1. Call analyze-repo with projectPath="${projectPath}" to scan the project and detect the stack.`,
-          "2. Call fetch-docs with the analysis to fetch up-to-date documentation for each detected technology via Context7.",
-          "3. Present a summary: detected stack, fetched documentation, any techs without docs.",
-          "4. Call generate-claude-md with the analysis and docs to create the CLAUDE.md file.",
+          "2. Present a summary of the detected stack.",
+          "3. Call generate-claude-md with the analysis — it will automatically fetch up-to-date documentation via Context7 and generate the CLAUDE.md file.",
           "",
           "Be thorough and explain the results clearly.",
         ];

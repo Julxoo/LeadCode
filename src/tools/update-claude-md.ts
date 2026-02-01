@@ -6,10 +6,9 @@ import { analyzeDependencies } from "../analyzers/dependencies.js";
 import { analyzeStructure } from "../analyzers/structure.js";
 import { detectFramework, detectStack } from "../analyzers/detection.js";
 import { analyzePatterns } from "../analyzers/patterns.js";
-import { resolveAndFetch, TECH_QUERIES } from "../context7/index.js";
+import { fetchAllDocs } from "../context7/index.js";
 import { generateClaudeMd } from "../templates/claude-md.js";
 import type { RepoAnalysis } from "../types.js";
-import type { FetchedDocs } from "./fetch-docs.js";
 
 /**
  * Extract user-added sections from an existing CLAUDE.md.
@@ -30,49 +29,6 @@ function extractUserChoices(existingContent: string): Record<string, string> {
     }
   }
   return choices;
-}
-
-/** Collect techs and fetch docs (same logic as fetch-docs tool but inline) */
-async function fetchDocsForAnalysis(analysis: RepoAnalysis): Promise<FetchedDocs> {
-  const techs: string[] = [];
-  if (analysis.framework) techs.push(analysis.framework.name);
-  const d = analysis.detected;
-  for (const value of Object.values(d)) {
-    if (typeof value === "string") techs.push(value);
-  }
-  const uniqueTechs = [...new Set(techs)];
-
-  const techDocs: Record<string, string> = {};
-  const crossDocs: Record<string, string> = {};
-  const failedTechs: string[] = [];
-  let snippetCount = 0;
-
-  for (const tech of uniqueTechs) {
-    const mapping = TECH_QUERIES[tech];
-    if (!mapping) { failedTechs.push(tech); continue; }
-    const docs = await resolveAndFetch(mapping.libraryName, mapping.queries.join(". "));
-    if (docs) { techDocs[tech] = docs; snippetCount++; }
-    else { failedTechs.push(tech); }
-  }
-
-  for (const tech of uniqueTechs) {
-    const mapping = TECH_QUERIES[tech];
-    if (!mapping?.crossQueries) continue;
-    for (const [other, query] of Object.entries(mapping.crossQueries)) {
-      if (!uniqueTechs.includes(other)) continue;
-      const key = `${tech}+${other}`;
-      const rev = `${other}+${tech}`;
-      if (key in crossDocs || rev in crossDocs) continue;
-      const docs = await resolveAndFetch(mapping.libraryName, query);
-      if (docs) { crossDocs[key] = docs; snippetCount++; }
-    }
-  }
-
-  return {
-    techDocs,
-    crossDocs,
-    metadata: { techCount: Object.keys(techDocs).length, snippetCount, failedTechs },
-  };
 }
 
 export function registerUpdateClaudeMd(server: McpServer): void {
@@ -130,7 +86,7 @@ export function registerUpdateClaudeMd(server: McpServer): void {
         };
 
         // Fetch fresh docs
-        const docs = await fetchDocsForAnalysis(analysis);
+        const docs = await fetchAllDocs(analysis);
 
         const content = generateClaudeMd(
           analysis,
