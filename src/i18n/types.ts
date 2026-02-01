@@ -130,6 +130,8 @@ export interface TemplateMessages {
     uiComponents: string;
     testing: string;
     stateManagement: string;
+    dataFetching: string;
+    formLibrary: string;
     apiStyle: string;
     i18n: string;
     payments: string;

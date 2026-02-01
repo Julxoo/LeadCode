@@ -95,7 +95,7 @@ export function getActiveCrossRefs(analysis: RepoAnalysis): CrossRef[] {
   if (analysis.framework) {
     techs.add(analysis.framework.name);
     // Add "react" for React-based frameworks so cross-refs like ["tailwind", "react"] activate
-    const reactFrameworks = new Set(["next", "vite-react", "remix"]);
+    const reactFrameworks = new Set(["next", "vite-react", "remix", "react"]);
     if (reactFrameworks.has(analysis.framework.name)) techs.add("react");
   }
   const detected = analysis.detected;

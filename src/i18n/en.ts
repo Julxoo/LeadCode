@@ -56,6 +56,8 @@ export const en: Messages = {
       uiComponents: "UI Components",
       testing: "Testing",
       stateManagement: "State Management",
+      dataFetching: "Data Fetching",
+      formLibrary: "Forms",
       apiStyle: "API Style",
       i18n: "i18n",
       payments: "Payments",

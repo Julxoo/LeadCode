@@ -14,6 +14,8 @@ function describeArchitecture(analysis: RepoAnalysis, locale: Locale): string[] 
     lines.push(`- **${m.architecture.frontendBackend}**: Next.js ${f.version} (${variant}) — ${m.architecture.fullStackReact}`);
   } else if (f?.name === "vite-react") {
     lines.push(`- **${m.architecture.frontend}**: ${m.architecture.reactSpaVite} ${f.version}`);
+  } else if (f?.name === "react") {
+    lines.push(`- **${m.architecture.frontend}**: React ${f.version}`);
   } else if (f) {
     lines.push(`- **${m.architecture.framework}**: ${f.name} ${f.version}`);
   }
@@ -143,6 +145,8 @@ export function generateClaudeMd(
   if (d.uiComponents) lines.push(`- **${m.stackLabels.uiComponents}**: ${d.uiComponents}`);
   if (d.testing) lines.push(`- **${m.stackLabels.testing}**: ${d.testing}`);
   if (d.stateManagement) lines.push(`- **${m.stackLabels.stateManagement}**: ${d.stateManagement}`);
+  if (d.dataFetching) lines.push(`- **Data Fetching**: ${d.dataFetching}`);
+  if (d.formLibrary) lines.push(`- **Forms**: ${d.formLibrary}`);
   if (d.apiStyle) lines.push(`- **${m.stackLabels.apiStyle}**: ${d.apiStyle}`);
   if (d.i18n) lines.push(`- **${m.stackLabels.i18n}**: ${d.i18n}`);
   if (d.payments) lines.push(`- **${m.stackLabels.payments}**: ${d.payments}`);

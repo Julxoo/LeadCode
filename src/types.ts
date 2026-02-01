@@ -50,6 +50,8 @@ export interface DetectedStack {
   css: string | null;
   testing: string | null;
   stateManagement: string | null;
+  dataFetching: string | null; // "react-query" | "swr"
+  formLibrary: string | null; // "react-hook-form" | "formik"
   apiStyle: string | null; // "rest" | "trpc" | "graphql"
   bundler: string | null;
   linter: string | null;

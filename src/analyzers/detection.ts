@@ -78,6 +78,11 @@ export function detectFramework(
     return { name: "hono", version: findVersion("hono", deps, devDeps) ?? "unknown" };
   }
 
+  // Standalone React (no framework detected above)
+  if (has("react", deps, devDeps)) {
+    return { name: "react", version: findVersion("react", deps, devDeps) ?? "unknown" };
+  }
+
   return null;
 }
 
@@ -137,15 +142,26 @@ export function detectStack(deps: Deps, devDeps: Deps): DetectedStack {
   // Also detect test utilities (secondary)
   // @testing-library/react, msw, supertest are addons, not primary test runners
 
-  // State management
+  // State management (client state only)
   let stateManagement: string | null = null;
   if ("zustand" in all) stateManagement = "zustand";
   else if ("@reduxjs/toolkit" in all || "redux" in all) stateManagement = "redux";
   else if ("jotai" in all) stateManagement = "jotai";
-  else if ("@tanstack/react-query" in all) stateManagement = "react-query";
-  else if ("swr" in all) stateManagement = "swr";
   else if ("valtio" in all) stateManagement = "valtio";
   else if ("@xstate/react" in all || "xstate" in all) stateManagement = "xstate";
+  else if ("recoil" in all) stateManagement = "recoil";
+  else if ("mobx" in all || "mobx-react-lite" in all) stateManagement = "mobx";
+
+  // Data fetching / server state (separate from client state)
+  let dataFetching: string | null = null;
+  if ("@tanstack/react-query" in all) dataFetching = "react-query";
+  else if ("swr" in all) dataFetching = "swr";
+
+  // Form library
+  let formLibrary: string | null = null;
+  if ("react-hook-form" in all) formLibrary = "react-hook-form";
+  else if ("formik" in all) formLibrary = "formik";
+  else if ("@tanstack/react-form" in all) formLibrary = "tanstack-form";
 
   // API style
   let apiStyle: string | null = null;
@@ -263,6 +279,8 @@ export function detectStack(deps: Deps, devDeps: Deps): DetectedStack {
     css,
     testing,
     stateManagement,
+    dataFetching,
+    formLibrary,
     apiStyle,
     bundler,
     linter,

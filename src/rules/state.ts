@@ -3,15 +3,12 @@ import type { Rule } from "../types.js";
 export const stateManagementRules: Rule = {
   id: "state-management",
   name: "State Management",
-  applies: (a) => {
-    const sm = a.detected.stateManagement;
-    return sm !== null && sm !== "react-query" && sm !== "swr";
-  },
+  applies: (a) => a.detected.stateManagement !== null,
   gaps: [
     {
       category: "store-organization",
       severity: "medium",
-      check: (a) => !a.structure.hasStoreDir && a.detected.stateManagement !== "react-query" && a.detected.stateManagement !== "swr",
+      check: (a) => !a.structure.hasStoreDir,
       message: "No store directory detected",
       details:
         "Without a dedicated store/ directory, Claude will create stores in random locations.",

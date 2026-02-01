@@ -56,6 +56,8 @@ export const fr: Messages = {
       uiComponents: "Composants UI",
       testing: "Tests",
       stateManagement: "Gestion d'état",
+      dataFetching: "Data Fetching",
+      formLibrary: "Formulaires",
       apiStyle: "Style d'API",
       i18n: "i18n",
       payments: "Paiements",
