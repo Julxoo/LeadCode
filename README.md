@@ -35,20 +35,15 @@ Your Project ──→ LeadCode ──→ CLAUDE.md ──→ Claude Code knows 
 
 LeadCode is an MCP server — it's used through Claude Code, not as a standalone CLI.
 
-Add LeadCode to your MCP config. Either globally in `~/.claude/claude_code_config.json`, or per-project in `.mcp.json`:
+**One command:**
 
-```json
-{
-  "mcpServers": {
-    "leadcode": {
-      "command": "npx",
-      "args": ["-y", "leadcode"]
-    }
-  }
-}
+```bash
+claude mcp add --scope project leadcode -- npx -y leadcode@latest
 ```
 
-Then restart Claude Code. LeadCode's tools will be available automatically.
+That's it. Restart Claude Code and LeadCode's tools are available.
+
+> Use `--scope user` instead of `--scope project` to install globally across all your projects.
 
 ## Usage
 
