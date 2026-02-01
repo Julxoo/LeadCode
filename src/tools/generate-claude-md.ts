@@ -11,8 +11,22 @@ export function registerGenerateClaudeMd(server: McpServer): void {
     "generate-claude-md",
     {
       title: "Generate CLAUDE.md",
-      description:
-        "Generate a CLAUDE.md file for a project. Takes the analysis from analyze-repo and synthesized documentation rules (from Context7 via Claude). Use this when the user wants to create, setup, init, or generate project rules, a CLAUDE.md, or configure Claude Code for a project.",
+      description: [
+        "Generate a CLAUDE.md file for a project.",
+        "",
+        "IMPORTANT: Before calling this tool, you MUST follow this workflow:",
+        "1. Call analyze-repo to get the project analysis.",
+        "2. Read the LeadCode resource 'leadcode://tech-queries' to get the mapping of detected techs to Context7 library names and queries.",
+        "3. For each detected technology that has a mapping in tech-queries:",
+        "   a) Call Context7 resolve-library-id with the libraryName and query.",
+        "   b) Call Context7 query-docs with the resolved ID and the queries.",
+        "   c) Synthesize the raw docs into 3-5 concise actionable rules per tech (conventions, patterns, gotchas — NO full code blocks).",
+        "4. For cross-tech combinations (crossQueries in tech-queries): if both techs are detected, fetch and synthesize 3-5 cross-stack rules.",
+        "5. Build a JSON: { \"techDocs\": { \"next\": \"- rule 1\\n- rule 2\", ... }, \"crossDocs\": { \"next+prisma\": \"- rule 1\", ... } }",
+        "6. Then call this tool with analysis + docs.",
+        "",
+        "If Context7 is not available, call this tool without docs (the CLAUDE.md will only contain project analysis).",
+      ].join("\n"),
       inputSchema: {
         analysis: z
           .string()
