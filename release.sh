@@ -21,21 +21,28 @@ if [ "$BRANCH" != "main" ]; then
   exit 1
 fi
 
-# Check working tree is clean
+# If working tree is dirty, commit everything first
 if [ -n "$(git status --porcelain)" ]; then
-  echo -e "${RED}Error: Working tree is not clean. Commit or stash your changes first.${NC}"
-  echo ""
+  echo -e "${YELLOW}Uncommitted changes detected — committing before release...${NC}"
   git status --short
-  exit 1
+  echo ""
+  read -p "Commit message (or Enter for 'chore: pre-release changes'): " COMMIT_MSG
+  COMMIT_MSG=${COMMIT_MSG:-"chore: pre-release changes"}
+  git add -A
+  git commit -m "$COMMIT_MSG"
+  echo -e "${GREEN}Changes committed${NC}"
+  echo ""
 fi
 
-# Check we're up to date with remote
+# Push if local is ahead of remote
 git fetch origin main --quiet
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse origin/main)
 if [ "$LOCAL" != "$REMOTE" ]; then
-  echo -e "${RED}Error: Local branch is not in sync with origin/main. Pull or push first.${NC}"
-  exit 1
+  echo -e "${YELLOW}Local branch is ahead of origin/main — pushing...${NC}"
+  git push origin main
+  echo -e "${GREEN}Pushed${NC}"
+  echo ""
 fi
 
 # Check npm login
@@ -79,10 +86,15 @@ case $CHOICE in
     ;;
 esac
 
-# Compute new version (dry run)
-NEW_VERSION=$(npm version $BUMP --no-git-tag-version --dry-run 2>/dev/null | tr -d 'v')
-# Reset if dry-run modified anything
-git checkout -- package.json 2>/dev/null || true
+# Compute new version without modifying files
+MAJOR=$(node -p "require('./package.json').version.split('.')[0]")
+MINOR=$(node -p "require('./package.json').version.split('.')[1]")
+PATCH=$(node -p "require('./package.json').version.split('.')[2]")
+case $BUMP in
+  patch) NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+  minor) NEW_VERSION="$MAJOR.$((MINOR + 1)).0" ;;
+  major) NEW_VERSION="$((MAJOR + 1)).0.0" ;;
+esac
 
 echo ""
 echo -e "  ${CYAN}$CURRENT_VERSION${NC} → ${GREEN}$NEW_VERSION${NC} ($BUMP)"
@@ -139,7 +151,7 @@ npm run build
 
 echo ""
 echo -e "${YELLOW}Staging changes...${NC}"
-git add package.json CHANGELOG.md
+git add package.json package-lock.json CHANGELOG.md
 
 # Also stage dist/ if it's tracked
 if git ls-files --error-unmatch dist/ &>/dev/null 2>&1; then
