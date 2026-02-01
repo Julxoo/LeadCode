@@ -235,15 +235,17 @@ export function generateClaudeMd(
     }
   }
 
-  // Cross-stack documentation (from Context7)
+  // Cross-stack conventions (unified section)
   const crossEntries = Object.entries(docs.crossDocs);
   if (crossEntries.length > 0) {
-    for (const [key, docContent] of crossEntries) {
-      if (!docContent.trim()) continue;
-      const [tech1, tech2] = key.split("+");
-      lines.push(`## Cross-Stack: ${techDisplayName(tech1)} + ${techDisplayName(tech2)}`);
+    const crossContent = crossEntries
+      .map(([, content]) => content.trim())
+      .filter(Boolean)
+      .join("\n");
+    if (crossContent) {
+      lines.push("## Cross-Stack Conventions");
       lines.push("");
-      lines.push(docContent.trim());
+      lines.push(crossContent);
       lines.push("");
     }
   }
