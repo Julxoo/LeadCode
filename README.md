@@ -33,36 +33,22 @@ Your Project ──→ LeadCode ──→ CLAUDE.md ──→ Claude Code knows 
 
 ## Installation
 
-```bash
-npm install -g leadcode
-```
+LeadCode is an MCP server — it's used through Claude Code, not as a standalone CLI.
 
-### Configure with Claude Code
-
-Add LeadCode to your MCP config. In `~/.claude/claude_code_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "leadcode": {
-      "command": "leadcode"
-    }
-  }
-}
-```
-
-Or if installed locally in a project:
+Add LeadCode to your MCP config. Either globally in `~/.claude/claude_code_config.json`, or per-project in `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "leadcode": {
       "command": "npx",
-      "args": ["leadcode"]
+      "args": ["-y", "leadcode"]
     }
   }
 }
 ```
+
+Then restart Claude Code. LeadCode's tools will be available automatically.
 
 ## Usage
 
