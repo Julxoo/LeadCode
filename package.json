@@ -1,0 +1,55 @@
+{
+  "name": "leadcode",
+  "version": "0.1.0",
+  "description": "Virtual Lead Tech MCP server for Claude Code – analyzes repos, detects gaps, and generates structured CLAUDE.md files",
+  "type": "module",
+  "bin": {
+    "leadcode": "./bin/leadcode.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "claude",
+    "claude-code",
+    "lead-tech",
+    "context",
+    "vibe-coding",
+    "conventions",
+    "code-quality",
+    "developer-tools"
+  ],
+  "author": {
+    "name": "Jules Toussenel",
+    "url": "https://github.com/Julxoo"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Julxoo/LeadCode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Julxoo/LeadCode/issues"
+  },
+  "homepage": "https://github.com/Julxoo/LeadCode#readme",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
