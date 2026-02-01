@@ -10,8 +10,6 @@ import {
 import { generateClaudeMd } from "../templates/claude-md.js";
 import { analyzePatterns } from "../analyzers/patterns.js";
 import type { RepoAnalysis } from "../types.js";
-import type { Locale } from "../i18n/types.js";
-import { getMessages, interpolate } from "../i18n/index.js";
 
 export function registerGenerateClaudeMd(server: McpServer): void {
   server.registerTool(
@@ -30,16 +28,10 @@ export function registerGenerateClaudeMd(server: McpServer): void {
           .describe(
             "JSON string of user choices: Record<string, string> mapping topic to chosen option. Optional."
           ),
-        language: z
-          .enum(["en", "fr"])
-          .optional()
-          .describe("Output language for the generated CLAUDE.md (default: en)"),
       },
     },
-    async ({ analysis: analysisStr, choices: choicesStr, language }) => {
+    async ({ analysis: analysisStr, choices: choicesStr }) => {
       try {
-        const locale: Locale = language ?? "en";
-        const msg = getMessages(locale);
         const analysis: RepoAnalysis = JSON.parse(analysisStr);
         const choices: Record<string, string> = choicesStr
           ? JSON.parse(choicesStr)
@@ -51,7 +43,7 @@ export function registerGenerateClaudeMd(server: McpServer): void {
         } catch {
           return {
             isError: true,
-            content: [{ type: "text" as const, text: interpolate(msg.tools.dirNotFound, { path: analysis.projectPath }) }],
+            content: [{ type: "text" as const, text: `Project directory not found: ${analysis.projectPath}` }],
           };
         }
 
@@ -66,8 +58,7 @@ export function registerGenerateClaudeMd(server: McpServer): void {
           interdictions,
           crossRefs,
           choices,
-          patterns,
-          locale
+          patterns
         );
 
         const outputPath = join(analysis.projectPath, "CLAUDE.md");
@@ -80,8 +71,7 @@ export function registerGenerateClaudeMd(server: McpServer): void {
               text: JSON.stringify(
                 {
                   path: outputPath,
-                  message: msg.tools.generateSuccess,
-                  language: locale,
+                  message: "CLAUDE.md generated successfully",
                   sections: {
                     conventions: conventions.length,
                     interdictions: interdictions.length,
