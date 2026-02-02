@@ -41,6 +41,19 @@ const CATEGORY_LABELS: Record<string, string> = {
   observability: "Observability",
   logging: "Logging",
   deployment: "Deployment",
+  serialization: "Serialization",
+  "async-runtime": "Async Runtime",
+  "error-handling": "Error Handling",
+  cli: "CLI",
+  "type-checker": "Type Checker",
+  migration: "Migration",
+  "http-client": "HTTP Client",
+  server: "Server",
+  config: "Config",
+  admin: "Admin",
+  middleware: "Middleware",
+  caching: "Caching",
+  template: "Template",
 };
 
 function categoryLabel(cat: string): string {
@@ -94,6 +107,33 @@ function describeArchitecture(analysis: RepoAnalysis): string[] {
   return lines;
 }
 
+/** Resolve the command prefix for scripts based on ecosystem/package manager */
+function scriptPrefix(analysis: RepoAnalysis): string {
+  switch (analysis.ecosystem) {
+    case "javascript": {
+      const pm = analysis.packageManager;
+      if (pm?.startsWith("yarn")) return "yarn";
+      if (pm?.startsWith("pnpm")) return "pnpm run";
+      if (pm?.startsWith("bun")) return "bun run";
+      return "npm run";
+    }
+    case "python":
+      return "";
+    case "rust":
+      return "cargo";
+    case "go":
+      return "go";
+    case "java":
+      return "mvn";
+    case "php":
+      return "";
+    case "ruby":
+      return "bundle exec";
+    default:
+      return "";
+  }
+}
+
 /** Format a tech name for section headers */
 function techDisplayName(tech: string): string {
   const names: Record<string, string> = {
@@ -113,6 +153,48 @@ function techDisplayName(tech: string): string {
     "socket.io": "Socket.IO", inngest: "Inngest",
     sanity: "Sanity", contentful: "Contentful",
     sentry: "Sentry", winston: "Winston", pino: "Pino",
+    // PHP ecosystem
+    laravel: "Laravel", symfony: "Symfony", slim: "Slim", codeigniter: "CodeIgniter",
+    cakephp: "CakePHP", yii2: "Yii2",
+    doctrine: "Doctrine ORM", eloquent: "Eloquent",
+    phpunit: "PHPUnit", pest: "Pest", phpstan: "PHPStan", psalm: "Psalm",
+    phpcs: "PHP_CodeSniffer", "php-cs-fixer": "PHP CS Fixer", pint: "Laravel Pint",
+    rector: "Rector",
+    sanctum: "Laravel Sanctum", "passport": "Laravel Passport",
+    "jwt-auth": "JWT Auth", fortify: "Laravel Fortify",
+    breeze: "Laravel Breeze", jetstream: "Laravel Jetstream",
+    "symfony-security": "Symfony Security", socialite: "Laravel Socialite",
+    "laravel-permission": "Spatie Permission",
+    twig: "Twig", livewire: "Livewire", inertia: "Inertia.js",
+    filament: "Filament", nova: "Laravel Nova",
+    easyadmin: "EasyAdmin", "sonata-admin": "Sonata Admin",
+    "api-platform": "API Platform", fractal: "Fractal",
+    "nelmio-api-doc": "NelmioApiDoc", scribe: "Scribe",
+    "laravel-data": "Spatie Laravel Data",
+    "laravel-query-builder": "Spatie Query Builder",
+    guzzle: "Guzzle", "symfony-http-client": "Symfony HttpClient",
+    horizon: "Laravel Horizon", "symfony-messenger": "Symfony Messenger",
+    monolog: "Monolog", phpdotenv: "PHP dotenv", "symfony-dotenv": "Symfony Dotenv",
+    telescope: "Laravel Telescope", debugbar: "Laravel Debugbar",
+    "symfony-profiler": "Symfony Profiler",
+    "symfony-serializer": "Symfony Serializer", "jms-serializer": "JMS Serializer",
+    "symfony-cache": "Symfony Cache",
+    "symfony-console": "Symfony Console", "symfony-form": "Symfony Form",
+    "symfony-workflow": "Symfony Workflow",
+    "symfony-validator": "Symfony Validator", "symfony-translation": "Symfony Translation",
+    cashier: "Laravel Cashier", "cashier-paddle": "Laravel Cashier Paddle",
+    "symfony-mailer": "Symfony Mailer", flysystem: "Flysystem",
+    "intervention-image": "Intervention Image",
+    "laravel-medialibrary": "Spatie Media Library",
+    "laravel-activitylog": "Spatie Activity Log",
+    "laravel-translatable": "Spatie Translatable",
+    "laravel-settings": "Spatie Settings",
+    "laravel-backup": "Spatie Backup",
+    octane: "Laravel Octane", reverb: "Laravel Reverb",
+    statamic: "Statamic", scout: "Laravel Scout",
+    dusk: "Laravel Dusk", mockery: "Mockery", codeception: "Codeception",
+    predis: "Predis", meilisearch: "Meilisearch", algolia: "Algolia",
+    elasticsearch: "Elasticsearch",
   };
   return names[tech] ?? tech.replace(/(^|\s|-)\w/g, c => c.toUpperCase()).replace(/-/g, " ");
 }
@@ -160,14 +242,20 @@ export function generateClaudeMd(
   if (allDirs.length > 0) {
     lines.push("**Structure:**");
     for (const d of allDirs) lines.push(`- ${d}`);
-    // Infra flags
-    if (s.hasPrismaSchema) lines.push("- Prisma schema at `prisma/schema.prisma`");
+    // Infra flags (universal)
     if (s.hasDockerfile) lines.push("- Docker configuration present");
     if (s.hasEnvValidation) lines.push("- Environment validation configured");
     if (s.hasMiddleware) lines.push("- Middleware configured");
-    if (s.hasAppDir) lines.push("- Next.js App Router (`app/`)");
-    if (s.hasPagesDir) lines.push("- Pages directory (`pages/`)");
-    if (s.hasApiRoutes) lines.push("- API routes present");
+    // Schema files (ecosystem-agnostic)
+    for (const schema of s.schemaFiles) {
+      lines.push(`- Schema: \`${schema}\``);
+    }
+    // JS/Next.js specific
+    if (analysis.ecosystem === "javascript") {
+      if (s.hasAppDir) lines.push("- Next.js App Router (`app/`)");
+      if (s.hasPagesDir) lines.push("- Pages directory (`pages/`)");
+      if (s.hasApiRoutes) lines.push("- API routes present");
+    }
     lines.push("");
   }
 
@@ -175,9 +263,11 @@ export function generateClaudeMd(
   const scripts = Object.entries(analysis.scripts);
   if (scripts.length > 0) {
     lines.push("**Scripts:**");
+    const prefix = scriptPrefix(analysis);
     const shown = scripts.length <= 15 ? scripts : scripts.slice(0, 15);
     for (const [name, cmd] of shown) {
-      lines.push(`- \`npm run ${name}\` → \`${cmd}\``);
+      const run = prefix ? `${prefix} ${name}` : name;
+      lines.push(`- \`${run}\` → \`${cmd}\``);
     }
     if (scripts.length > 15) {
       lines.push(`- ... and ${scripts.length - 15} more`);

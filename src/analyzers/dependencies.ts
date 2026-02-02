@@ -1,7 +1,11 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { getEcosystemAdapter } from "./ecosystem.js";
 
-export interface PackageJsonData {
+// Re-export type for backward compatibility
+export type { PackageJsonData } from "./ecosystems/javascript.js";
+
+export async function analyzeDependencies(
+  projectPath: string,
+): Promise<{
   name: string;
   version: string;
   dependencies: Record<string, string>;
@@ -11,44 +15,18 @@ export interface PackageJsonData {
   engines: Record<string, string>;
   packageManager: string | null;
   workspaces: string[] | null;
-}
-
-export async function analyzeDependencies(
-  projectPath: string
-): Promise<PackageJsonData> {
-  const filePath = join(projectPath, "package.json");
-  let raw: string;
-  try {
-    raw = await readFile(filePath, "utf-8");
-  } catch {
-    throw new Error(`Cannot read package.json at ${filePath}`);
-  }
-
-  let pkg: Record<string, unknown>;
-  try {
-    pkg = JSON.parse(raw);
-  } catch {
-    throw new Error(`Invalid JSON in ${filePath}`);
-  }
-
-  // workspaces can be string[] or { packages: string[] }
-  let workspaces: string[] | null = null;
-  if (Array.isArray(pkg.workspaces)) {
-    workspaces = pkg.workspaces as string[];
-  } else if (pkg.workspaces && typeof pkg.workspaces === "object") {
-    const w = pkg.workspaces as Record<string, unknown>;
-    if (Array.isArray(w.packages)) workspaces = w.packages as string[];
-  }
-
+}> {
+  const adapter = getEcosystemAdapter("javascript");
+  const result = await adapter.parseDependencies(projectPath);
   return {
-    name: typeof pkg.name === "string" ? pkg.name : "unknown",
-    version: typeof pkg.version === "string" ? pkg.version : "0.0.0",
-    dependencies: (pkg.dependencies as Record<string, string>) ?? {},
-    devDependencies: (pkg.devDependencies as Record<string, string>) ?? {},
-    peerDependencies: (pkg.peerDependencies as Record<string, string>) ?? {},
-    scripts: (pkg.scripts as Record<string, string>) ?? {},
-    engines: (pkg.engines as Record<string, string>) ?? {},
-    packageManager: typeof pkg.packageManager === "string" ? pkg.packageManager : null,
-    workspaces,
+    name: result.projectName,
+    version: result.projectVersion,
+    dependencies: result.dependencies,
+    devDependencies: result.devDependencies,
+    peerDependencies: result.peerDependencies,
+    scripts: result.scripts,
+    engines: result.engines,
+    packageManager: result.packageManager,
+    workspaces: result.workspaces,
   };
 }

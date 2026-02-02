@@ -32,7 +32,7 @@ Your Project ──→ LeadCode (analyze) ──→ Claude orchestrates
                               LeadCode (generate) ──→ CLAUDE.md
 ```
 
-1. **Analyze** — Scans `package.json`, directory structure, and source code patterns
+1. **Analyze** — Scans project manifests (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `pom.xml`, `composer.json`), directory structure, and source code patterns
 2. **Detect** — Identifies your stack across 25+ categories (framework, ORM, auth, CSS, testing, i18n, etc.)
 3. **Fetch & Synthesize** — Claude calls Context7 for official docs and WebSearch for community knowledge, then synthesizes into concise actionable rules
 4. **Generate** — Writes a structured `CLAUDE.md` (~100-150 lines) with version-specific conventions
@@ -85,35 +85,35 @@ Checks if an existing `CLAUDE.md` is still in sync with the project. Detects dri
 - **`update-project`** — Re-analyzes and regenerates while preserving your Project Decisions
 - **`validate-project`** — Checks if your CLAUDE.md is still up to date
 
-## What Gets Detected
+## Supported Ecosystems
 
-### Frameworks
-Next.js (App/Pages Router), Nuxt, Remix, Astro, SvelteKit, SolidStart, Vite+React, React, Express, Fastify, Hono
+| Ecosystem | Manifest | Frameworks | Stack rules |
+|-----------|----------|------------|-------------|
+| **JavaScript/TypeScript** | `package.json` | Next.js, Nuxt, Remix, Astro, SvelteKit, Express, Fastify, Hono | ~120 rules |
+| **Python** | `pyproject.toml`, `requirements.txt`, `Pipfile`, `setup.py` | Django, Flask, FastAPI, Starlette, Litestar, Sanic, Tornado | ~60 rules |
+| **Rust** | `Cargo.toml` | Actix-web, Axum, Rocket, Warp, Tide, Poem, Hyper | ~35 rules |
+| **Go** | `go.mod` | Gin, Echo, Fiber, Chi, Gorilla/mux, httprouter | ~25 rules |
+| **Java/Kotlin** | `pom.xml`, `build.gradle`, `build.gradle.kts` | Spring Boot, Quarkus, Micronaut, Vert.x, Javalin | ~35 rules |
+| **PHP** | `composer.json` | Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii2 | ~90 rules |
+
+## What Gets Detected
 
 ### Stack (25+ categories)
 
 | Category | Examples |
 |----------|----------|
-| ORM | Prisma, Drizzle, TypeORM, MikroORM, Mongoose, Kysely, Sequelize |
-| Auth | NextAuth, Clerk, Lucia, Supabase Auth, Auth0, Kinde, Better Auth |
-| Validation | Zod, Yup, Joi, Valibot, ArkType |
-| CSS | Tailwind, Chakra, MUI, styled-components, Emotion, Panda, Mantine, Ant Design |
-| UI Components | shadcn (auto-detected), Radix, Headless UI, NextUI, Tremor |
-| Testing | Vitest, Jest, Playwright, Cypress |
-| State | Zustand, Redux, Jotai, Valtio, XState, Recoil, MobX |
-| Data Fetching | TanStack Query, SWR |
-| Forms | React Hook Form, Formik, TanStack Form |
-| i18n | next-intl, i18next, Lingui, react-intl |
-| Payments | Stripe, LemonSqueezy |
-| CMS | Contentlayer, MDX, Sanity, Notion, Contentful, Strapi |
-| Email | Resend, Nodemailer, SendGrid, Postmark, React Email |
-| File Upload | UploadThing, Vercel Blob, Multer, S3 |
-| Realtime | Socket.io, Pusher, Ably |
-| Jobs | BullMQ, Inngest, Trigger.dev |
-| Database | PostgreSQL, MySQL, SQLite, MongoDB, Supabase, PlanetScale, Redis |
-| API Style | tRPC, GraphQL |
-| Monorepo | Turborepo, Nx, Lerna |
-| Runtime | Node, Bun, Deno |
+| ORM | Prisma, Drizzle, Eloquent, Doctrine, Hibernate, Diesel, GORM |
+| Auth | NextAuth, Sanctum, Symfony Security, Spring Security, JWT |
+| Validation | Zod, Pydantic, Bean Validation, Symfony Validator |
+| CSS/UI | Tailwind, shadcn, Chakra, MUI, Livewire, Inertia, Twig |
+| Testing | Vitest, Jest, PHPUnit, Pest, pytest, testify, JUnit5 |
+| Logging | Winston, Monolog, Tracing, Zap, SLF4J |
+| API | tRPC, GraphQL, API Platform, gRPC, Swagger |
+| Database | PostgreSQL, Redis, MongoDB, SQLx, pgx, Predis |
+| Jobs | BullMQ, Horizon, Symfony Messenger, Celery, Spring Kafka |
+| Observability | Sentry, Telescope, Debugbar, OpenTelemetry, Micrometer |
+| Admin | Filament, Nova, EasyAdmin, Sonata Admin |
+| And more... | Email, File Upload, Payments, Realtime, CMS, i18n, CLI, Config |
 
 ### Code Patterns & Conventions (auto-detected)
 - Client/Server component ratio
@@ -141,14 +141,14 @@ The `CLAUDE.md` is organized into:
 
 - **Node.js** >= 18
 - **Context7 MCP server** installed alongside LeadCode (for documentation fetching)
-- The target project must have a `package.json`
-- Currently optimized for JavaScript/TypeScript projects
+- The target project must have a recognized manifest file (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle`, `composer.json`, `Gemfile`)
 
 ## Limitations
 
-- **JS/TS only** — No support for Python, Go, Rust, etc.
-- **Single package.json** — Monorepo support detects the tool but analyzes only the root
-- **No lint config reading** — Detects ESLint/Biome but doesn't parse their rules
+- **Ruby not yet supported** — Detected but no adapter implemented yet
+- **Single manifest** — Monorepo support detects the tool but analyzes only the root
+- **No multi-ecosystem projects** — Hybrid projects (e.g. JS frontend + Python backend) not yet supported
+- **No lint config reading** — Detects ESLint/Biome/PHPStan but doesn't parse their rules
 - **No CI/CD detection** — GitHub Actions, etc. are not analyzed
 
 ## Contributing

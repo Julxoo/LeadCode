@@ -21,7 +21,7 @@ export interface StructureInfo {
   hasSrcDir: boolean;
   topLevelDirs: string[];
   srcDirs: string[];
-  detectedRuntime: "node" | "bun" | "deno";
+  detectedRuntime: string;
   approximateFileCount: number;
   // Infra (factual filesystem checks)
   hasPrismaSchema: boolean;
@@ -34,6 +34,8 @@ export interface StructureInfo {
   hasPagesDir: boolean;
   hasApiRoutes: boolean;
   hasMiddleware: boolean;
+  // Generic schema files tracking
+  schemaFiles: string[];
 }
 
 export interface FetchedDocs {
@@ -47,9 +49,12 @@ export interface FetchedDocs {
   };
 }
 
+import type { Ecosystem } from "./analyzers/ecosystem.js";
+
 export interface RepoAnalysis {
   projectPath: string;
   projectName: string;
+  ecosystem: Ecosystem;
   framework: FrameworkInfo | null;
   dependencies: Record<string, string>;
   devDependencies: Record<string, string>;

@@ -1,7 +1,8 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { StructureInfo } from "../types.js";
-import { IGNORE_DIRS as IGNORE } from "./constants.js";
+import type { Ecosystem } from "./ecosystem.js";
+import { IGNORE_DIRS as IGNORE, getIgnoreDirs, getSourceExtensions } from "./constants.js";
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -56,28 +57,64 @@ async function hasContentRecursive(
 }
 
 /**
- * Count source files recursively.
+ * Count source files recursively, using the provided set of extensions.
  */
-async function countSourceFiles(dir: string, maxDepth = 6): Promise<number> {
+async function countSourceFiles(
+  dir: string,
+  sourceExts: Set<string>,
+  ignoreDirs: Set<string>,
+  maxDepth = 6,
+): Promise<number> {
   if (maxDepth <= 0) return 0;
   let count = 0;
   try {
     const entries = await readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
-      if (IGNORE.has(entry.name) || entry.name.startsWith(".")) continue;
+      if (ignoreDirs.has(entry.name) || IGNORE.has(entry.name) || entry.name.startsWith(".")) continue;
       if (entry.isFile()) {
         const ext = entry.name.split(".").pop() ?? "";
-        if (["ts", "tsx", "js", "jsx", "mts", "mjs", "cjs", "svelte", "vue", "astro"].includes(ext)) count++;
+        if (sourceExts.has(ext)) count++;
       }
       if (entry.isDirectory()) {
-        count += await countSourceFiles(join(dir, entry.name), maxDepth - 1);
+        count += await countSourceFiles(join(dir, entry.name), sourceExts, ignoreDirs, maxDepth - 1);
       }
     }
   } catch { /* permission errors */ }
   return count;
 }
 
-export async function analyzeStructure(projectPath: string): Promise<StructureInfo> {
+/**
+ * Detect runtime. For JS: bun/deno/node. For others: the ecosystem name.
+ */
+async function detectRuntime(projectPath: string, ecosystem?: Ecosystem): Promise<string> {
+  if (!ecosystem || ecosystem === "javascript") {
+    const [bunLockb, bunLock, denoJson, denoJsonc] = await Promise.all([
+      exists(join(projectPath, "bun.lockb")),
+      exists(join(projectPath, "bun.lock")),
+      exists(join(projectPath, "deno.json")),
+      exists(join(projectPath, "deno.jsonc")),
+    ]);
+    if (bunLockb || bunLock) return "bun";
+    if (denoJson || denoJsonc) return "deno";
+    return "node";
+  }
+
+  // Map ecosystems to their runtime display name
+  const runtimeNames: Record<string, string> = {
+    python: "python",
+    rust: "rust",
+    go: "go",
+    java: "jvm",
+    php: "php",
+    ruby: "ruby",
+  };
+  return runtimeNames[ecosystem] ?? ecosystem;
+}
+
+export async function analyzeStructure(
+  projectPath: string,
+  ecosystem?: Ecosystem,
+): Promise<StructureInfo> {
   const topLevelDirs = await getSubdirs(projectPath);
   const hasSrcDir = topLevelDirs.includes("src");
   const srcDirs = hasSrcDir ? await getSubdirs(join(projectPath, "src")) : [];
@@ -98,17 +135,43 @@ export async function analyzeStructure(projectPath: string): Promise<StructureIn
       exists(join(projectPath, "middleware.js")),
       exists(join(projectPath, "src", "middleware.ts")),
       exists(join(projectPath, "src", "middleware.js")),
+      // PHP middleware detection
+      exists(join(projectPath, "app", "Http", "Middleware")),
+      exists(join(projectPath, "src", "Middleware")),
     ]).then(r => r.some(Boolean)),
   ]);
 
   const hasApiRoutes =
-    (await checkPath(["app", "api"])) || (await checkPath(["pages", "api"]));
+    (await checkPath(["app", "api"])) ||
+    (await checkPath(["pages", "api"])) ||
+    // PHP: routes/api.php (Laravel) or config/routes (Symfony)
+    (await exists(join(projectPath, "routes", "api.php"))) ||
+    (await exists(join(projectPath, "config", "routes")));
+
+  // Schema files
+  const schemaFiles: string[] = [];
+  if (await exists(join(projectPath, "prisma", "schema.prisma"))) {
+    schemaFiles.push("prisma/schema.prisma");
+  }
+  // Doctrine schema (Symfony/PHP)
+  if (await exists(join(projectPath, "config", "packages", "doctrine.yaml"))) {
+    schemaFiles.push("config/packages/doctrine.yaml");
+  }
+  // Laravel migrations directory
+  if (await exists(join(projectPath, "database", "migrations"))) {
+    schemaFiles.push("database/migrations/");
+  }
+
+  // Get ecosystem-aware source extensions and ignore dirs
+  const sourceExts = ecosystem ? getSourceExtensions(ecosystem) : new Set([
+    "ts", "tsx", "js", "jsx", "mts", "mjs", "cjs", "svelte", "vue", "astro",
+  ]);
+  const ignoreDirs = ecosystem ? getIgnoreDirs(ecosystem) : IGNORE;
 
   const [
-    hasPrismaSchema, hasTsConfig, hasEnvExample, hasEnvValidation,
+    hasTsConfig, hasEnvExample, hasEnvValidation,
     hasDockerfile, runtime, approximateFileCount,
   ] = await Promise.all([
-    exists(join(projectPath, "prisma", "schema.prisma")),
     exists(join(projectPath, "tsconfig.json")),
     Promise.all([
       exists(join(projectPath, ".env.example")),
@@ -127,15 +190,8 @@ export async function analyzeStructure(projectPath: string): Promise<StructureIn
       exists(join(projectPath, "docker-compose.yml")),
       exists(join(projectPath, "docker-compose.yaml")),
     ]).then(r => r.some(Boolean)),
-    Promise.all([
-      exists(join(projectPath, "bun.lockb")),
-      exists(join(projectPath, "bun.lock")),
-      exists(join(projectPath, "deno.json")),
-      exists(join(projectPath, "deno.jsonc")),
-    ]).then(([bunLockb, bunLock, denoJson, denoJsonc]) =>
-      (bunLockb || bunLock) ? "bun" as const : (denoJson || denoJsonc) ? "deno" as const : "node" as const
-    ),
-    countSourceFiles(projectPath),
+    detectRuntime(projectPath, ecosystem),
+    countSourceFiles(projectPath, sourceExts, ignoreDirs),
   ]);
 
   return {
@@ -144,7 +200,7 @@ export async function analyzeStructure(projectPath: string): Promise<StructureIn
     srcDirs,
     detectedRuntime: runtime,
     approximateFileCount,
-    hasPrismaSchema,
+    hasPrismaSchema: schemaFiles.includes("prisma/schema.prisma"),
     hasDockerfile,
     hasEnvExample,
     hasEnvValidation,
@@ -153,5 +209,6 @@ export async function analyzeStructure(projectPath: string): Promise<StructureIn
     hasPagesDir,
     hasApiRoutes,
     hasMiddleware,
+    schemaFiles,
   };
 }

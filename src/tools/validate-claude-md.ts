@@ -2,9 +2,8 @@ import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod";
-import { analyzeDependencies } from "../analyzers/dependencies.js";
 import { analyzeStructure } from "../analyzers/structure.js";
-import { detectFramework, detectStack } from "../analyzers/detection.js";
+import { detectEcosystem, getEcosystemAdapter } from "../analyzers/ecosystem.js";
 
 interface Drift {
   type: "missing" | "outdated";
@@ -40,10 +39,35 @@ export function registerValidateClaudeMd(server: McpServer): void {
         const claudeMd = await readFile(claudeMdPath, "utf-8");
         const claudeMdLower = claudeMd.toLowerCase();
 
-        const pkg = await analyzeDependencies(projectPath);
-        const structure = await analyzeStructure(projectPath);
-        const framework = detectFramework(pkg.dependencies, pkg.devDependencies, structure);
-        const detected = detectStack(pkg.dependencies, pkg.devDependencies, structure);
+        // Detect ecosystem and get adapter
+        let ecosystemDetection;
+        try {
+          ecosystemDetection = await detectEcosystem(projectPath);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          return {
+            isError: true,
+            content: [{ type: "text" as const, text: message }],
+          };
+        }
+
+        let adapter;
+        try {
+          adapter = getEcosystemAdapter(ecosystemDetection.ecosystem);
+        } catch {
+          return {
+            isError: true,
+            content: [{
+              type: "text" as const,
+              text: `Detected ecosystem: ${ecosystemDetection.ecosystem}. Currently supported: JavaScript, Python, Rust, Go, Java, PHP.`,
+            }],
+          };
+        }
+
+        const pkg = await adapter.parseDependencies(projectPath);
+        const structure = await analyzeStructure(projectPath, ecosystemDetection.ecosystem);
+        const framework = adapter.detectFramework(pkg.dependencies, pkg.devDependencies, structure);
+        const detected = adapter.detectStack(pkg.dependencies, pkg.devDependencies, structure);
 
         const drifts: Drift[] = [];
 
@@ -59,7 +83,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
         }
 
         // Check all recognized techs dynamically
-        for (const [key, tech] of Object.entries(detected.recognized)) {
+        for (const [, tech] of Object.entries(detected.recognized)) {
           if (!claudeMdLower.includes(tech.name.toLowerCase())) {
             drifts.push({
               type: "missing",

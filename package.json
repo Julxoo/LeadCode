@@ -43,6 +43,8 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "fast-xml-parser": "^5.3.4",
+    "smol-toml": "^1.6.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

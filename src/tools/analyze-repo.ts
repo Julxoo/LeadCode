@@ -1,10 +1,8 @@
 import { stat } from "node:fs/promises";
-import { join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod";
-import { analyzeDependencies } from "../analyzers/dependencies.js";
 import { analyzeStructure } from "../analyzers/structure.js";
-import { detectFramework, detectStack } from "../analyzers/detection.js";
+import { detectEcosystem, getEcosystemAdapter } from "../analyzers/ecosystem.js";
 import type { RepoAnalysis } from "../types.js";
 
 export function registerAnalyzeRepo(server: McpServer): void {
@@ -14,6 +12,7 @@ export function registerAnalyzeRepo(server: McpServer): void {
       title: "Analyze Repository",
       description: [
         "Scan and analyze a project to detect its full tech stack, directory structure, scripts, and dependencies.",
+        "Automatically detects the project ecosystem (JavaScript, Python, Rust, Go, Java/Kotlin, PHP).",
         "Returns recognized technologies with versions and categories, plus all unrecognized dependencies for further analysis.",
         "",
         "IMPORTANT: This is step 1 of the full workflow. After calling this tool, you MUST:",
@@ -43,23 +42,47 @@ export function registerAnalyzeRepo(server: McpServer): void {
           };
         }
 
+        // Detect ecosystem
+        let ecosystemDetection;
         try {
-          await stat(join(projectPath, "package.json"));
-        } catch {
+          ecosystemDetection = await detectEcosystem(projectPath);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
           return {
             isError: true,
-            content: [{ type: "text" as const, text: `No package.json found in ${projectPath}. LeadCode requires a Node.js project.` }],
+            content: [{ type: "text" as const, text: message }],
           };
         }
 
-        const pkg = await analyzeDependencies(projectPath);
-        const structure = await analyzeStructure(projectPath);
-        const framework = detectFramework(pkg.dependencies, pkg.devDependencies, structure);
-        const detected = detectStack(pkg.dependencies, pkg.devDependencies, structure);
+        // Get adapter for detected ecosystem
+        let adapter;
+        try {
+          adapter = getEcosystemAdapter(ecosystemDetection.ecosystem);
+        } catch {
+          return {
+            isError: true,
+            content: [{
+              type: "text" as const,
+              text: [
+                `Detected ecosystem: ${ecosystemDetection.ecosystem} (${ecosystemDetection.confidence} confidence)`,
+                `Reason: ${ecosystemDetection.reason}`,
+                "",
+                `Ecosystem "${ecosystemDetection.ecosystem}" is detected but not yet supported.`,
+                `Currently supported: JavaScript, Python, Rust, Go, Java, PHP.`,
+              ].join("\n"),
+            }],
+          };
+        }
+
+        const pkg = await adapter.parseDependencies(projectPath);
+        const structure = await analyzeStructure(projectPath, ecosystemDetection.ecosystem);
+        const framework = adapter.detectFramework(pkg.dependencies, pkg.devDependencies, structure);
+        const detected = adapter.detectStack(pkg.dependencies, pkg.devDependencies, structure);
 
         const analysis: RepoAnalysis = {
           projectPath,
-          projectName: pkg.name,
+          projectName: pkg.projectName,
+          ecosystem: ecosystemDetection.ecosystem,
           framework,
           dependencies: pkg.dependencies,
           devDependencies: pkg.devDependencies,
