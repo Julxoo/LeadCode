@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "leadcode": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "leadcode@latest"
+      ],
+      "env": {}
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ],
+      "env": {}
+    }
+  }
+}
