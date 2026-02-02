@@ -55,14 +55,14 @@ function describeArchitecture(analysis: RepoAnalysis): string[] {
   // Framework
   if (f) {
     const variant = f.variant && f.variant !== "unknown" ? ` (${f.variant === "app-router" ? "App Router" : f.variant === "pages-router" ? "Pages Router" : f.variant})` : "";
-    lines.push(`- **Framework**: ${f.name} ${f.version}${variant}`);
+    lines.push(`- **Framework**: ${techDisplayName(f.name)} ${f.version}${variant}`);
   }
 
   // Group display: skip categories already covered by framework or patterns
   const skipCategories = new Set(["bundler", "linter", "formatter"]);
   for (const [category, techs] of Object.entries(groups)) {
     if (skipCategories.has(category)) continue;
-    const techList = techs.map(t => t.version ? `${t.name} ${t.version}` : t.name).join(", ");
+    const techList = techs.map(t => t.version ? `${techDisplayName(t.name)} ${t.version}` : techDisplayName(t.name)).join(", ");
     lines.push(`- **${categoryLabel(category)}**: ${techList}`);
   }
 

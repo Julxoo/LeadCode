@@ -219,6 +219,7 @@ const RULES: Rule[] = [
     packages: ["@radix-ui/react-slot", "@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-separator"],
     name: "shadcn",
     category: "ui-components",
+    versionFrom: "__none__",
     condition: (all, structure) =>
       "tailwindcss" in all && "class-variance-authority" in all &&
       (!structure || structure.topLevelDirs.includes("components") || structure.srcDirs.includes("components")),
