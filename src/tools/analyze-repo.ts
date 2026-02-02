@@ -13,7 +13,7 @@ export function registerAnalyzeRepo(server: McpServer): void {
     {
       title: "Analyze Repository",
       description:
-        "Scan and analyze a project to detect its full tech stack: framework, ORM, auth, CSS, testing, state management, API style, and more. Use this when the user wants to know what technologies a project uses, or as the first step before generating a CLAUDE.md.",
+        "Scan and analyze a project to detect its full tech stack, directory structure, scripts, and dependencies. Returns recognized technologies with versions and categories, plus all unrecognized dependencies for further analysis.",
       inputSchema: {
         projectPath: z
           .string()
@@ -22,7 +22,6 @@ export function registerAnalyzeRepo(server: McpServer): void {
     },
     async ({ projectPath }) => {
       try {
-        // Verify path exists
         try {
           await stat(projectPath);
         } catch {
@@ -32,7 +31,6 @@ export function registerAnalyzeRepo(server: McpServer): void {
           };
         }
 
-        // Verify package.json exists
         try {
           await stat(join(projectPath, "package.json"));
         } catch {
@@ -44,13 +42,8 @@ export function registerAnalyzeRepo(server: McpServer): void {
 
         const pkg = await analyzeDependencies(projectPath);
         const structure = await analyzeStructure(projectPath);
-        const framework = detectFramework(
-          pkg.dependencies,
-          pkg.devDependencies,
-          structure
-        );
-        const detected = detectStack(pkg.dependencies, pkg.devDependencies);
-        detected.runtime = structure.detectedRuntime;
+        const framework = detectFramework(pkg.dependencies, pkg.devDependencies, structure);
+        const detected = detectStack(pkg.dependencies, pkg.devDependencies, structure);
 
         const analysis: RepoAnalysis = {
           projectPath,
@@ -58,7 +51,11 @@ export function registerAnalyzeRepo(server: McpServer): void {
           framework,
           dependencies: pkg.dependencies,
           devDependencies: pkg.devDependencies,
+          peerDependencies: pkg.peerDependencies,
           scripts: pkg.scripts,
+          engines: pkg.engines,
+          packageManager: pkg.packageManager,
+          workspaces: pkg.workspaces,
           structure,
           detected,
         };

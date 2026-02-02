@@ -1,5 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 import { IGNORE_DIRS as IGNORE, SOURCE_EXTS } from "./constants.js";
 
 export type NamingStyle = "kebab-case" | "camelCase" | "PascalCase" | "snake_case" | "mixed";
@@ -122,11 +122,12 @@ async function scanDir(
     return;
   }
 
+  // Collect subdirectories for parallel scan
+  const subdirs: string[] = [];
   for (const entry of entries) {
     if (IGNORE.has(entry.name) || entry.name.startsWith(".")) continue;
-
     if (entry.isDirectory()) {
-      await scanDir(join(dir, entry.name), patterns, counters, maxDepth - 1);
+      subdirs.push(join(dir, entry.name));
       continue;
     }
 
@@ -153,8 +154,8 @@ async function scanDir(
       patterns.totalComponents++;
     }
 
-    // Check for 'use client' / 'use server'
-    const firstLines = content.slice(0, 200);
+    // Check for 'use client' / 'use server' in first 5 non-empty lines
+    const firstLines = lines.slice(0, 5).join("\n");
     if (firstLines.includes("'use client'") || firstLines.includes('"use client"')) {
       patterns.useClientCount++;
     }
@@ -180,10 +181,12 @@ async function scanDir(
       patterns.largeFiles.push(filePath);
     }
 
-    // Console.log count
-    const consoleMatches = content.match(/console\.log\(/g);
-    if (consoleMatches) {
-      patterns.consoleLogCount += consoleMatches.length;
+    // Console.log count (exclude commented lines)
+    for (const line of lines) {
+      const trimmed = line.trimStart();
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+      const consoleMatches = trimmed.match(/console\.log\(/g);
+      if (consoleMatches) patterns.consoleLogCount += consoleMatches.length;
     }
 
     // Quote style from imports
@@ -209,6 +212,11 @@ async function scanDir(
       const order = extractImportOrder(content);
       if (order) counters.importOrderSamples.push(order);
     }
+  }
+
+  // Parallel subdirectory scan
+  if (subdirs.length > 0) {
+    await Promise.all(subdirs.map(sub => scanDir(sub, patterns, counters, maxDepth - 1)));
   }
 }
 

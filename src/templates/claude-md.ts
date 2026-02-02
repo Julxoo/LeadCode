@@ -1,103 +1,120 @@
-import type { RepoAnalysis } from "../types.js";
+import type { RepoAnalysis, RecognizedTech } from "../types.js";
 import type { CodePatterns } from "../analyzers/patterns.js";
 import type { FetchedDocs } from "../types.js";
-import type { Locale } from "../i18n/types.js";
-import { getMessages, interpolate } from "../i18n/index.js";
 
-function describeArchitecture(analysis: RepoAnalysis, locale: Locale): string[] {
-  const m = getMessages(locale).templates;
+/** Group recognized techs by category */
+function groupByCategory(recognized: Record<string, RecognizedTech>): Record<string, RecognizedTech[]> {
+  const groups: Record<string, RecognizedTech[]> = {};
+  for (const tech of Object.values(recognized)) {
+    if (!groups[tech.category]) groups[tech.category] = [];
+    groups[tech.category].push(tech);
+  }
+  return groups;
+}
+
+/** Category display labels */
+const CATEGORY_LABELS: Record<string, string> = {
+  orm: "ORM",
+  "database-driver": "Database Driver",
+  "query-builder": "Query Builder",
+  auth: "Authentication",
+  validation: "Validation",
+  css: "Styling",
+  testing: "Testing",
+  state: "State Management",
+  "data-fetching": "Data Fetching",
+  forms: "Forms",
+  api: "API",
+  bundler: "Bundler",
+  linter: "Linter",
+  formatter: "Formatter",
+  i18n: "i18n",
+  monorepo: "Monorepo",
+  database: "Database",
+  email: "Email",
+  "file-upload": "File Upload",
+  payments: "Payments",
+  realtime: "Realtime",
+  cms: "CMS",
+  jobs: "Background Jobs",
+  "ui-components": "UI Components",
+  observability: "Observability",
+  logging: "Logging",
+  deployment: "Deployment",
+};
+
+function categoryLabel(cat: string): string {
+  return CATEGORY_LABELS[cat] ?? cat.replace(/-/g, " ").replace(/(^|\s)\w/g, c => c.toUpperCase());
+}
+
+function describeArchitecture(analysis: RepoAnalysis): string[] {
   const lines: string[] = [];
   const f = analysis.framework;
-  const d = analysis.detected;
+  const groups = groupByCategory(analysis.detected.recognized);
 
-  if (f?.name === "next") {
-    const variant = f.variant === "app-router" ? "App Router" : f.variant === "pages-router" ? "Pages Router" : "";
-    lines.push(`- **${m.architecture.frontendBackend}**: Next.js ${f.version} (${variant}) — ${m.architecture.fullStackReact}`);
-  } else if (f?.name === "vite-react") {
-    lines.push(`- **${m.architecture.frontend}**: ${m.architecture.reactSpaVite} ${f.version}`);
-  } else if (f?.name === "react") {
-    lines.push(`- **${m.architecture.frontend}**: React ${f.version}`);
-  } else if (f) {
-    lines.push(`- **${m.architecture.framework}**: ${f.name} ${f.version}`);
+  // Framework
+  if (f) {
+    const variant = f.variant && f.variant !== "unknown" ? ` (${f.variant === "app-router" ? "App Router" : f.variant === "pages-router" ? "Pages Router" : f.variant})` : "";
+    lines.push(`- **Framework**: ${f.name} ${f.version}${variant}`);
   }
 
-  if (d.orm) lines.push(`- **${m.architecture.dataLayer}**: ${d.orm}${d.database ? ` → ${d.database}` : ""}`);
-  else if (d.database) lines.push(`- **${m.architecture.database}**: ${d.database}`);
+  // Group display: skip categories already covered by framework or patterns
+  const skipCategories = new Set(["bundler", "linter", "formatter"]);
+  for (const [category, techs] of Object.entries(groups)) {
+    if (skipCategories.has(category)) continue;
+    const techList = techs.map(t => t.version ? `${t.name} ${t.version}` : t.name).join(", ");
+    lines.push(`- **${categoryLabel(category)}**: ${techList}`);
+  }
 
-  if (d.auth) lines.push(`- **${m.architecture.authentication}**: ${d.auth}`);
-  if (d.apiStyle) lines.push(`- **${m.architecture.api}**: ${d.apiStyle}`);
-  if (d.stateManagement) lines.push(`- **${m.architecture.clientState}**: ${d.stateManagement}`);
-  if (d.i18n) lines.push(`- **${m.architecture.i18n}**: ${d.i18n}`);
-  if (d.payments) lines.push(`- **${m.architecture.payments}**: ${d.payments}`);
-  if (d.realtime) lines.push(`- **${m.architecture.realtime}**: ${d.realtime}`);
-  if (d.email) lines.push(`- **${m.architecture.email}**: ${d.email}`);
-  if (d.cms) lines.push(`- **${m.architecture.content}**: ${d.cms}`);
-  if (d.jobs) lines.push(`- **${m.architecture.backgroundJobs}**: ${d.jobs}`);
-  if (d.fileUpload) lines.push(`- **${m.architecture.fileUpload}**: ${d.fileUpload}`);
+  // Tooling (bundler, linter, formatter on one line if present)
+  const tooling: string[] = [];
+  for (const cat of ["bundler", "linter", "formatter"]) {
+    if (groups[cat]) {
+      tooling.push(...groups[cat].map(t => t.name));
+    }
+  }
+  if (tooling.length > 0) {
+    lines.push(`- **Tooling**: ${tooling.join(", ")}`);
+  }
 
-  const scale = analysis.structure.approximateFileCount;
-  if (scale > 0) {
-    const size = scale < 30 ? m.architecture.sizeSmall
-      : scale < 100 ? m.architecture.sizeMedium
-      : scale < 300 ? m.architecture.sizeLarge
-      : m.architecture.sizeVeryLarge;
-    lines.push(`- **${m.architecture.projectSize}**: ${size} (~${scale} ${m.architecture.sourceFiles})`);
+  // Runtime & scale
+  const s = analysis.structure;
+  lines.push(`- **Runtime**: ${s.detectedRuntime}`);
+  if (analysis.packageManager) lines.push(`- **Package Manager**: ${analysis.packageManager}`);
+  if (analysis.workspaces) lines.push(`- **Workspaces**: ${analysis.workspaces.join(", ")}`);
+
+  if (s.approximateFileCount > 0) {
+    const size = s.approximateFileCount < 30 ? "small"
+      : s.approximateFileCount < 100 ? "medium"
+      : s.approximateFileCount < 300 ? "large"
+      : "very large";
+    lines.push(`- **Project size**: ${size} (~${s.approximateFileCount} source files)`);
   }
 
   return lines;
 }
 
-/** Format a tech name for display as section header */
+/** Format a tech name for section headers */
 function techDisplayName(tech: string): string {
   const names: Record<string, string> = {
-    next: "Next.js",
-    react: "React",
-    "vite-react": "Vite + React",
-    nuxt: "Nuxt",
-    remix: "Remix",
-    astro: "Astro",
-    sveltekit: "SvelteKit",
-    express: "Express",
-    fastify: "Fastify",
-    hono: "Hono",
-    prisma: "Prisma",
-    drizzle: "Drizzle",
-    typeorm: "TypeORM",
-    mongoose: "Mongoose",
-    kysely: "Kysely",
-    "next-auth": "NextAuth.js",
-    clerk: "Clerk",
-    "better-auth": "Better Auth",
-    auth0: "Auth0",
-    "supabase-auth": "Supabase Auth",
-    zod: "Zod",
-    valibot: "Valibot",
-    tailwind: "Tailwind CSS",
-    shadcn: "shadcn/ui",
-    chakra: "Chakra UI",
-    mui: "Material UI",
-    mantine: "Mantine",
-    vitest: "Vitest",
-    jest: "Jest",
-    playwright: "Playwright",
-    cypress: "Cypress",
-    zustand: "Zustand",
-    redux: "Redux Toolkit",
-    jotai: "Jotai",
-    "react-query": "TanStack Query",
-    swr: "SWR",
+    next: "Next.js", react: "React", "vite-react": "Vite + React",
+    nuxt: "Nuxt", remix: "Remix", astro: "Astro", sveltekit: "SvelteKit",
+    express: "Express", fastify: "Fastify", hono: "Hono",
+    prisma: "Prisma", drizzle: "Drizzle", typeorm: "TypeORM", mongoose: "Mongoose", kysely: "Kysely",
+    "next-auth": "NextAuth.js", clerk: "Clerk", "better-auth": "Better Auth", auth0: "Auth0",
+    zod: "Zod", valibot: "Valibot",
+    tailwind: "Tailwind CSS", shadcn: "shadcn/ui", chakra: "Chakra UI", mui: "Material UI", mantine: "Mantine",
+    vitest: "Vitest", jest: "Jest", playwright: "Playwright", cypress: "Cypress",
+    zustand: "Zustand", redux: "Redux Toolkit", jotai: "Jotai",
+    "react-query": "TanStack Query", swr: "SWR",
     "react-hook-form": "React Hook Form",
-    trpc: "tRPC",
-    stripe: "Stripe",
-    resend: "Resend",
-    "next-intl": "next-intl",
-    i18next: "i18next",
-    "socket.io": "Socket.IO",
-    inngest: "Inngest",
-    sanity: "Sanity",
-    contentful: "Contentful",
+    trpc: "tRPC", stripe: "Stripe", resend: "Resend",
+    "next-intl": "next-intl", i18next: "i18next",
+    "socket.io": "Socket.IO", inngest: "Inngest",
+    sanity: "Sanity", contentful: "Contentful",
+    sentry: "Sentry", winston: "Winston", pino: "Pino",
   };
-  return names[tech] ?? tech;
+  return names[tech] ?? tech.replace(/(^|\s|-)\w/g, c => c.toUpperCase()).replace(/-/g, " ");
 }
 
 export function generateClaudeMd(
@@ -105,75 +122,75 @@ export function generateClaudeMd(
   docs: FetchedDocs,
   choices: Record<string, string>,
   patterns?: CodePatterns,
-  locale: Locale = "en"
 ): string {
-  const m = getMessages(locale).templates;
   const lines: string[] = [];
-  const d = analysis.detected;
   const s = analysis.structure;
 
   // Header
-  lines.push(`# ${interpolate(m.header.title, { name: analysis.projectName })}`);
+  lines.push(`# CLAUDE.md — ${analysis.projectName}`);
   lines.push("");
-  lines.push(`> ${m.header.meta1}`);
-  lines.push(`> ${m.header.meta2}`);
+  lines.push("> Generated by LeadCode. Edit freely — this is YOUR project's rules.");
+  lines.push("> Re-run update-project to refresh after major dependency changes.");
   lines.push("");
 
-  // Project overview: architecture + stack + structure in one section
-  lines.push(`## ${m.sections.architectureOverview}`);
+  // Architecture overview
+  lines.push("## Architecture Overview");
   lines.push("");
-  const archLines = describeArchitecture(analysis, locale);
-  lines.push(...archLines);
+  lines.push(...describeArchitecture(analysis));
   lines.push("");
 
   // Structure
-  const structLines: string[] = [];
-  if (s.hasSrcDir) structLines.push(m.structure.srcDir);
-  if (s.hasAppDir) structLines.push(m.structure.appRouter);
-  if (s.hasPagesDir) structLines.push(m.structure.pagesRouter);
-  if (s.hasApiRoutes) structLines.push(m.structure.apiRoutes);
-  if (s.hasMiddleware) structLines.push(m.structure.middleware);
-  if (s.hasComponentsDir) structLines.push(m.structure.components);
-  if (s.hasLibDir) structLines.push(m.structure.sharedUtils);
-  if (s.hasServicesDir) structLines.push(m.structure.services);
-  if (s.hasHooksDir) structLines.push(m.structure.customHooks);
-  if (s.hasStoreDir) structLines.push(m.structure.stateStores);
-  if (s.hasSchemasDir) structLines.push(m.structure.validationSchemas);
-  if (s.hasTypesDir) structLines.push(m.structure.typeDefinitions);
-  if (s.hasConfigDir) structLines.push(m.structure.configuration);
-  if (s.hasProvidersDir) structLines.push(m.structure.reactProviders);
-  if (s.hasPrismaSchema) structLines.push(m.structure.prismaSchema);
-  if (structLines.length > 0) {
+  const allDirs = s.hasSrcDir
+    ? [`src/ → ${s.srcDirs.join(", ") || "(empty)"}`]
+    : [];
+  if (s.topLevelDirs.length > 0) {
+    allDirs.push(`Root dirs: ${s.topLevelDirs.join(", ")}`);
+  }
+  if (allDirs.length > 0) {
     lines.push("**Structure:**");
-    for (const sl of structLines) lines.push(`- ${sl}`);
+    for (const d of allDirs) lines.push(`- ${d}`);
+    // Infra flags
+    if (s.hasPrismaSchema) lines.push("- Prisma schema at `prisma/schema.prisma`");
+    if (s.hasDockerfile) lines.push("- Docker configuration present");
+    if (s.hasEnvValidation) lines.push("- Environment validation configured");
+    if (s.hasMiddleware) lines.push("- Middleware configured");
+    if (s.hasAppDir) lines.push("- Next.js App Router (`app/`)");
+    if (s.hasPagesDir) lines.push("- Pages directory (`pages/`)");
+    if (s.hasApiRoutes) lines.push("- API routes present");
     lines.push("");
   }
 
-  // Scripts
+  // Scripts — show all
   const scripts = Object.entries(analysis.scripts);
   if (scripts.length > 0) {
     lines.push("**Scripts:**");
-    for (const [name, cmd] of scripts) {
+    const shown = scripts.length <= 15 ? scripts : scripts.slice(0, 15);
+    for (const [name, cmd] of shown) {
       lines.push(`- \`npm run ${name}\` → \`${cmd}\``);
+    }
+    if (scripts.length > 15) {
+      lines.push(`- ... and ${scripts.length - 15} more`);
     }
     lines.push("");
   }
 
-  // Existing code patterns (merged into overview)
+  // Codebase patterns
   if (patterns) {
     const patternLines: string[] = [];
     if (patterns.totalComponents > 0) {
-      patternLines.push(interpolate(m.patterns.clientServerRatio, {
-        clientCount: patterns.useClientCount,
-        totalCount: patterns.totalComponents,
-        clientPercent: Math.round(patterns.clientRatio * 100),
-      }));
+      patternLines.push(`Client components: ${patterns.useClientCount}/${patterns.totalComponents} (${Math.round(patterns.clientRatio * 100)}% 'use client')`);
     }
     if (patterns.useServerCount > 0) {
-      patternLines.push(interpolate(m.patterns.serverActions, { count: patterns.useServerCount }));
+      patternLines.push(`Server Actions: ${patterns.useServerCount} files with 'use server'`);
     }
-    if (patterns.usesPathAlias) patternLines.push(m.patterns.pathAliases);
-    if (patterns.hasBarrelFiles) patternLines.push(m.patterns.barrelFiles);
+    if (patterns.usesPathAlias) patternLines.push("Uses @/ or ~/ path aliases");
+    if (patterns.hasBarrelFiles) patternLines.push("Uses barrel files (index.ts re-exports)");
+    if (patterns.largeFiles.length > 0) {
+      patternLines.push(`${patterns.largeFiles.length} large files (>300 lines)`);
+    }
+    if (patterns.consoleLogCount > 0) {
+      patternLines.push(`${patterns.consoleLogCount} console.log calls found`);
+    }
     if (patternLines.length > 0) {
       lines.push("**Codebase patterns:**");
       for (const pl of patternLines) lines.push(`- ${pl}`);
@@ -181,7 +198,7 @@ export function generateClaudeMd(
     }
   }
 
-  // Per-tech documentation (from Context7 + WebSearch)
+  // Per-tech documentation
   const techEntries = Object.entries(docs.techDocs);
   if (techEntries.length > 0) {
     for (const [tech, docContent] of techEntries) {
@@ -193,7 +210,7 @@ export function generateClaudeMd(
     }
   }
 
-  // Cross-stack conventions (unified section)
+  // Cross-stack conventions
   const crossEntries = Object.entries(docs.crossDocs);
   if (crossEntries.length > 0) {
     const crossContent = crossEntries
@@ -208,10 +225,9 @@ export function generateClaudeMd(
     }
   }
 
-  // Conventions: fully auto-detected from codebase
+  // Conventions (auto-detected)
   if (patterns) {
     const convLines: string[] = [];
-
     if (patterns.fileNamingStyle !== "mixed") {
       convLines.push(`- File naming: ${patterns.fileNamingStyle}`);
     }
@@ -229,9 +245,7 @@ export function generateClaudeMd(
       convLines.push(`- Import order: ${patterns.importOrder.join(" → ")}`);
     }
     if (patterns.indentation) {
-      const desc = patterns.indentation.style === "tabs"
-        ? "Tabs"
-        : `${patterns.indentation.size} spaces`;
+      const desc = patterns.indentation.style === "tabs" ? "Tabs" : `${patterns.indentation.size} spaces`;
       convLines.push(`- Indentation: ${desc}`);
     }
     if (patterns.quoteStyle && patterns.quoteStyle !== "mixed") {
@@ -240,7 +254,6 @@ export function generateClaudeMd(
     if (s.hasSrcDir) {
       convLines.push("- New files go in `src/`");
     }
-
     if (convLines.length > 0) {
       lines.push("## Conventions");
       lines.push("");
@@ -252,7 +265,7 @@ export function generateClaudeMd(
   // User choices
   const choiceEntries = Object.entries(choices);
   if (choiceEntries.length > 0) {
-    lines.push(`## ${m.sections.projectDecisions}`);
+    lines.push("## Project Decisions");
     lines.push("");
     for (const [topic, choice] of choiceEntries) {
       lines.push(`- **${topic}**: ${choice}`);

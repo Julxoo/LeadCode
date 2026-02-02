@@ -18,7 +18,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
     {
       title: "Validate CLAUDE.md",
       description:
-        "Check if an existing CLAUDE.md is still up to date with the project. Detects drifts like missing technologies or outdated versions. Use this when the user asks to validate, check, verify, or audit their CLAUDE.md.",
+        "Check if an existing CLAUDE.md is still up to date with the project. Detects drifts like missing technologies or outdated versions.",
       inputSchema: {
         projectPath: z
           .string()
@@ -38,13 +38,12 @@ export function registerValidateClaudeMd(server: McpServer): void {
         }
 
         const claudeMd = await readFile(claudeMdPath, "utf-8");
+        const claudeMdLower = claudeMd.toLowerCase();
 
-        // Re-analyze the project
         const pkg = await analyzeDependencies(projectPath);
         const structure = await analyzeStructure(projectPath);
         const framework = detectFramework(pkg.dependencies, pkg.devDependencies, structure);
-        const detected = detectStack(pkg.dependencies, pkg.devDependencies);
-        detected.runtime = structure.detectedRuntime;
+        const detected = detectStack(pkg.dependencies, pkg.devDependencies, structure);
 
         const drifts: Drift[] = [];
 
@@ -53,38 +52,19 @@ export function registerValidateClaudeMd(server: McpServer): void {
           if (!claudeMd.includes(framework.version)) {
             drifts.push({
               type: "outdated",
-              section: "Stack",
+              section: "Framework",
               message: `Framework version ${framework.version} not found in CLAUDE.md. Version may have been updated.`,
             });
           }
         }
 
-        // Check for new techs not mentioned
-        const techFields: [string, string | null][] = [
-          ["ORM", detected.orm],
-          ["Auth", detected.auth],
-          ["Validation", detected.validation],
-          ["CSS", detected.css],
-          ["Testing", detected.testing],
-          ["i18n", detected.i18n],
-          ["Payments", detected.payments],
-          ["State Management", detected.stateManagement],
-          ["Data Fetching", detected.dataFetching],
-          ["Form Library", detected.formLibrary],
-          ["UI Components", detected.uiComponents],
-          ["Database", detected.database],
-          ["Email", detected.email],
-          ["Realtime", detected.realtime],
-          ["CMS", detected.cms],
-          ["Jobs", detected.jobs],
-        ];
-
-        for (const [label, value] of techFields) {
-          if (value && !claudeMd.toLowerCase().includes(value.toLowerCase())) {
+        // Check all recognized techs dynamically
+        for (const [key, tech] of Object.entries(detected.recognized)) {
+          if (!claudeMdLower.includes(tech.name.toLowerCase())) {
             drifts.push({
               type: "missing",
-              section: "Stack",
-              message: `${label}: ${value} is in the project but not mentioned in CLAUDE.md.`,
+              section: tech.category,
+              message: `${tech.name} (${tech.category}) is in the project but not mentioned in CLAUDE.md.`,
             });
           }
         }
@@ -100,7 +80,7 @@ export function registerValidateClaudeMd(server: McpServer): void {
                   total: drifts.length,
                   summary: drifts.length === 0
                     ? "CLAUDE.md is in sync with the project."
-                    : `Found ${drifts.length} drift(s). Consider running setup-project again to regenerate.`,
+                    : `Found ${drifts.length} drift(s). Consider running update-project to regenerate.`,
                 },
                 null,
                 2

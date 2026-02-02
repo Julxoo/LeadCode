@@ -12,43 +12,16 @@ export function registerGenerateClaudeMd(server: McpServer): void {
     {
       title: "Generate CLAUDE.md",
       description: [
-        "Generate a CLAUDE.md file for a project.",
+        "Generate and write a CLAUDE.md file for a project.",
         "",
-        "IMPORTANT: Before calling this tool, you MUST follow this workflow:",
+        "Requires the output of analyze-repo as the 'analysis' parameter.",
+        "Optionally accepts synthesized documentation as 'docs' (from Context7 + WebSearch) and user decisions as 'choices'.",
         "",
-        "## Step 1: Analyze",
-        "Call analyze-repo to get the project analysis.",
+        "docs format: { \"techDocs\": { \"next\": \"- rule 1\\n- rule 2\", ... }, \"crossDocs\": { \"all\": \"- cross rule 1\\n...\" } }",
+        "Each techDocs value: 3-5 concise actionable rules per technology.",
+        "crossDocs 'all' value: unified rules describing how all techs work together.",
         "",
-        "## Step 2: Read tech-queries",
-        "Read the LeadCode resource 'leadcode://tech-queries' to get the mapping of detected techs to Context7 library names and queries.",
-        "",
-        "## Step 3: Context7 — Official documentation",
-        "For each detected technology that has a mapping in tech-queries:",
-        "  a) Call Context7 resolve-library-id with the libraryName and query.",
-        "  b) Call Context7 query-docs with the resolved ID and the queries.",
-        "  c) Synthesize the raw docs into 3-5 concise actionable rules per tech (conventions, patterns, gotchas — NO full code blocks).",
-        "",
-        "## Step 4: WebSearch — Best practices, architecture & gotchas",
-        "For each detected technology, use WebSearch to complement Context7 with real-world knowledge:",
-        "  a) Search '{tech} {version} best practices architecture {current_year}' for each major tech (framework, ORM, CSS, etc.).",
-        "  b) Search '{tech} {version} breaking changes migration' if the detected version is recent.",
-        "  c) Search the full stack combination '{tech1} {tech2} {tech3} project architecture best practices' for holistic patterns.",
-        "Incorporate the results into both per-tech rules (techDocs) and cross-stack rules (crossDocs).",
-        "Focus on: project structure, architecture patterns, performance tips, security gotchas, and community conventions NOT covered by official docs.",
-        "",
-        "## Step 5: Unified cross-stack conventions",
-        "Using ALL Context7 docs + WebSearch results + crossQueries from tech-queries, produce ONE unified set of cross-stack rules.",
-        "These rules describe how ALL detected technologies work together as a whole (not pairwise).",
-        "Think in terms of real workflows: 'When creating a form, use shadcn components + Zod validation + Server Action + i18n error messages'.",
-        "Focus on rules that span multiple techs simultaneously. Put this in crossDocs under key 'all'.",
-        "",
-        "## Step 6: Build docs JSON",
-        "{ \"techDocs\": { \"next\": \"- rule 1\\n- rule 2\", ... }, \"crossDocs\": { \"all\": \"- cross rule 1\\n- cross rule 2\\n...\" } }",
-        "",
-        "## Step 7: Generate",
-        "Call this tool with analysis + docs.",
-        "",
-        "If Context7 is not available, use WebSearch only. If neither is available, call this tool without docs.",
+        "If docs is omitted, generates CLAUDE.md with project analysis only (no tech documentation).",
       ].join("\n"),
       inputSchema: {
         analysis: z
@@ -70,23 +43,38 @@ export function registerGenerateClaudeMd(server: McpServer): void {
     },
     async ({ analysis: analysisStr, docs: docsStr, choices: choicesStr }) => {
       try {
-        const analysis: RepoAnalysis = JSON.parse(analysisStr);
-        const choices: Record<string, string> = choicesStr
-          ? JSON.parse(choicesStr)
-          : {};
-
-        const docs: FetchedDocs = docsStr
-          ? JSON.parse(docsStr)
-          : { techDocs: {}, crossDocs: {}, metadata: { techCount: 0, snippetCount: 0, failedTechs: [] } };
-
-        // Ensure metadata exists
-        if (!docs.metadata) {
-          docs.metadata = {
-            techCount: Object.keys(docs.techDocs ?? {}).length,
-            snippetCount: Object.keys(docs.techDocs ?? {}).length + Object.keys(docs.crossDocs ?? {}).length,
-            failedTechs: [],
-          };
+        let analysis: RepoAnalysis;
+        try {
+          analysis = JSON.parse(analysisStr);
+        } catch {
+          return { isError: true, content: [{ type: "text" as const, text: "Invalid analysis JSON. Pass the raw output of analyze-repo." }] };
         }
+        if (!analysis.projectPath || !analysis.detected) {
+          return { isError: true, content: [{ type: "text" as const, text: "Malformed analysis: missing projectPath or detected stack." }] };
+        }
+
+        let choices: Record<string, string> = {};
+        if (choicesStr) {
+          try { choices = JSON.parse(choicesStr); } catch {
+            return { isError: true, content: [{ type: "text" as const, text: "Invalid choices JSON." }] };
+          }
+        }
+
+        let parsedDocs: Record<string, unknown> = {};
+        if (docsStr) {
+          try { parsedDocs = JSON.parse(docsStr); } catch {
+            return { isError: true, content: [{ type: "text" as const, text: "Invalid docs JSON." }] };
+          }
+        }
+        const docs: FetchedDocs = {
+          techDocs: (parsedDocs.techDocs as Record<string, string>) ?? {},
+          crossDocs: (parsedDocs.crossDocs as Record<string, string>) ?? {},
+          metadata: (parsedDocs.metadata as FetchedDocs["metadata"]) ?? {
+            techCount: Object.keys((parsedDocs.techDocs as Record<string, string>) ?? {}).length,
+            snippetCount: 0,
+            failedTechs: [],
+          },
+        };
 
         // Verify project path still exists
         try {

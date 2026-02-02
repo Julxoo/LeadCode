@@ -26,62 +26,57 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 ```
 src/
-  index.ts                  # MCP server entry, tool + prompt registration
-  types.ts                  # All shared types
+  index.ts                  # MCP server entry, tool + prompt + resource registration
+  types.ts                  # All shared types (RepoAnalysis, FetchedDocs, etc.)
   analyzers/
     constants.ts            # Shared constants (IGNORE_DIRS, SOURCE_EXTS)
     dependencies.ts         # package.json parser
-    detection.ts            # Framework + stack detection (22 categories)
+    detection.ts            # Framework + stack detection (23+ categories)
     structure.ts            # Directory/file structure analysis
-    patterns.ts             # Source code pattern analysis
-  rules/
-    index.ts                # Rule registry + aggregation
-    nextjs.ts               # Next.js App/Pages Router rules
-    react.ts                # React rules
-    node.ts                 # Express/Fastify/Hono rules
-    prisma.ts               # Prisma rules
-    drizzle.ts              # Drizzle rules
-    auth.ts                 # Auth rules
-    validation.ts           # Validation rules
-    typescript.ts           # TypeScript rules
-    tailwind.ts             # Tailwind rules
-    state.ts                # State management rules
-    trpc.ts                 # tRPC rules
-    cross-stack.ts          # Cross-stack combination rules (18 combos)
+    patterns.ts             # Code pattern analysis (naming, indentation, quotes, imports)
+  data/
+    tech-queries.ts         # Context7 library mappings for 40+ technologies
+  i18n/
+    types.ts                # Locale + Messages interfaces
+    en.ts                   # English messages
+    fr.ts                   # French messages
+    index.ts                # i18n utilities (getMessages, interpolate)
+  resources/
+    tech-queries.ts         # MCP resource: leadcode://tech-queries
   templates/
     claude-md.ts            # CLAUDE.md template generator
   tools/
     analyze-repo.ts         # analyze-repo tool
-    detect-gaps.ts          # detect-gaps tool
-    suggest.ts              # suggest-conventions tool
-    generate-claude-md.ts   # generate-claude-md tool
+    generate-claude-md.ts   # generate-claude-md tool (with orchestration workflow)
     validate-claude-md.ts   # validate-claude-md tool
-    update-claude-md.ts     # update-claude-md tool
 ```
 
 ## How to Contribute
 
-### Adding a new detection
+### Adding a new technology detection
 
 1. Add the detection logic in `src/analyzers/detection.ts` (in the appropriate category)
 2. If it's a new category, add the field to `DetectedStack` in `src/types.ts`
-3. Update `src/templates/claude-md.ts` to display it in the Stack section
+3. Add a Context7 mapping in `src/data/tech-queries.ts` (library name + queries)
+4. Add a display name in `src/templates/claude-md.ts` (`techDisplayName`)
 
-### Adding a new rule module
+### Adding a new framework
 
-1. Create `src/rules/your-rule.ts` following the `Rule` interface
-2. Export it and register in `src/rules/index.ts`
-3. Add gap suggestions in `src/tools/suggest.ts` if your rule has gaps
+1. Add detection in `detectFramework()` in `src/analyzers/detection.ts`
+2. Add a Context7 mapping in `src/data/tech-queries.ts`
+3. Add relevant structure checks in `src/analyzers/structure.ts` if needed
 
-### Adding a cross-stack rule
+### Adding i18n translations
 
-Add an entry to the `crossRefs` array in `src/rules/cross-stack.ts`. Make sure the `techs` array uses values that appear in the tech set (framework names, detected values).
+1. Add keys to `src/i18n/types.ts`
+2. Add English values in `src/i18n/en.ts`
+3. Add French values in `src/i18n/fr.ts`
+4. Keep both files in sync — same keys, same structure
 
 ## Guidelines
 
 - TypeScript strict mode — no `any` without justification
-- Keep rules factual and practical — no vague advice
-- Each convention must have a concrete `rule` string that Claude Code can follow
+- Keep the codebase lean — LeadCode has only 2 runtime dependencies
 - Test your changes against a real project before submitting
 - Run `npm run build` and verify it compiles cleanly
 
