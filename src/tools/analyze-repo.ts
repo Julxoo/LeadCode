@@ -12,8 +12,20 @@ export function registerAnalyzeRepo(server: McpServer): void {
     "analyze-repo",
     {
       title: "Analyze Repository",
-      description:
-        "Scan and analyze a project to detect its full tech stack, directory structure, scripts, and dependencies. Returns recognized technologies with versions and categories, plus all unrecognized dependencies for further analysis.",
+      description: [
+        "Scan and analyze a project to detect its full tech stack, directory structure, scripts, and dependencies.",
+        "Returns recognized technologies with versions and categories, plus all unrecognized dependencies for further analysis.",
+        "",
+        "IMPORTANT: This is step 1 of the full workflow. After calling this tool, you MUST:",
+        "1. Use the setup-project prompt (preferred) OR follow the full workflow manually:",
+        "2. For EACH recognized tech + relevant unrecognized dep: call resolve-library-id then query-docs (Context7)",
+        "3. For EACH tech: WebSearch '{tech} {version} best practices {current_year}'",
+        "4. Synthesize 3-5 actionable rules per tech",
+        "5. Produce cross-stack conventions for tech pairs that interact",
+        "6. Call generate-claude-md with analysis + docs JSON",
+        "",
+        "Do NOT call generate-claude-md directly without docs — the result will be an empty skeleton.",
+      ].join("\n"),
       inputSchema: {
         projectPath: z
           .string()
