@@ -22,7 +22,7 @@ Claude Code is powerful, but its output quality depends on context. Without clea
 ## How It Works
 
 ```
-Your Project ──→ LeadCode (analyze) ──→ Claude reads tech-queries resource
+Your Project ──→ LeadCode (analyze) ──→ Claude orchestrates
                                           ↓
                               Context7 MCP (official docs × N techs)
                               WebSearch (best practices, architecture, gotchas)
@@ -34,7 +34,7 @@ Your Project ──→ LeadCode (analyze) ──→ Claude reads tech-queries re
 
 1. **Analyze** — Scans `package.json`, directory structure, and source code patterns
 2. **Detect** — Identifies your stack across 25+ categories (framework, ORM, auth, CSS, testing, i18n, etc.)
-3. **Fetch & Synthesize** — Claude reads the tech-queries mapping, calls Context7 for official docs and WebSearch for community knowledge, then synthesizes into concise actionable rules
+3. **Fetch & Synthesize** — Claude calls Context7 for official docs and WebSearch for community knowledge, then synthesizes into concise actionable rules
 4. **Generate** — Writes a structured `CLAUDE.md` (~100-150 lines) with version-specific conventions
 
 ## Installation
@@ -85,10 +85,6 @@ Checks if an existing `CLAUDE.md` is still in sync with the project. Detects dri
 - **`update-project`** — Re-analyzes and regenerates while preserving your Project Decisions
 - **`validate-project`** — Checks if your CLAUDE.md is still up to date
 
-### Resources
-
-- **`leadcode://tech-queries`** — Mapping of detected technologies to Context7 library names and recommended queries. Used by Claude during the orchestration flow.
-
 ## What Gets Detected
 
 ### Frameworks
@@ -134,11 +130,12 @@ Next.js (App/Pages Router), Nuxt, Remix, Astro, SvelteKit, SolidStart, Vite+Reac
 
 The `CLAUDE.md` is organized into:
 
-1. **Architecture Overview** — Framework, data layer, auth, project size, structure, scripts, code patterns
-2. **Per-Technology Sections** — 3-5 concise, actionable rules per tech (from Context7 official docs + WebSearch)
-3. **Cross-Stack Conventions** — Unified rules for how all detected technologies work together
-4. **Conventions** — 100% auto-detected from your codebase (naming, imports, indentation, quotes, React conventions only if React is used)
-5. **Project Decisions** — User choices preserved across regenerations
+1. **Workflow** — Behavioral rules for Claude Code (research before coding, plan mode for non-trivial changes)
+2. **Architecture Overview** — Framework, data layer, auth, project size, structure, scripts, code patterns
+3. **Per-Technology Sections** — 3-5 concise, actionable rules per tech (from Context7 official docs + WebSearch)
+4. **Cross-Stack Conventions** — Unified rules for how all detected technologies work together
+5. **Conventions** — 100% auto-detected from your codebase (naming, imports, indentation, quotes, React conventions only if React is used)
+6. **Project Decisions** — User choices preserved across regenerations
 
 ## Requirements
 
