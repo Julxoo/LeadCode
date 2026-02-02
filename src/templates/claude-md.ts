@@ -133,6 +133,17 @@ export function generateClaudeMd(
   lines.push("> Re-run update-project to refresh after major dependency changes.");
   lines.push("");
 
+  // Workflow
+  lines.push("## Workflow");
+  lines.push("");
+  lines.push("When the user asks you to implement, fix, or modify something:");
+  lines.push("");
+  lines.push("1. **Research first** — Before writing any code, investigate the problem thoroughly: search the codebase, read relevant files, and use web search if needed. Present your findings and analysis to the user and ask for confirmation before proceeding.");
+  lines.push("2. **Plan before coding** — Once the user confirms the direction, switch to plan mode to design the implementation. Only start coding after the plan is approved.");
+  lines.push("");
+  lines.push("Skip this workflow only for trivial changes (typos, single-line fixes, simple renames).");
+  lines.push("");
+
   // Architecture overview
   lines.push("## Architecture Overview");
   lines.push("");
